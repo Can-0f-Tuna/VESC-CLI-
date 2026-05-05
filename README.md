@@ -1,293 +1,277 @@
-# VESC CLI
+# VESC CLI (veac) - AI-Controllable Motor Controller CLI
 
-**AI-Controllable Command Line Interface for VESC Motor Controllers**
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)]()
+[![License](https://img.shields.io/badge/license-GPL--3.0-green.svg)](LICENSE)
 
-[![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
-[![License](https://img.shields.io/badge/License-GPL--3.0-blue?style=for-the-badge)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-green?style=for-the-badge)]()
-
-A modern, lightweight CLI tool for controlling VESC (Vedder Electronic Speed Controller) motor controllers. Built for AI agents, automation, and human engineers who prefer the terminal.
+AI-controllable CLI for VESC motor controllers built with Bun + TypeScript. Features interactive conversational workflow, comprehensive hardware database, and HATEOAS-style JSON responses for seamless agent integration.
 
 ## ✨ Features
 
-- 🤖 **AI-First Design** - JSON output with HATEOAS navigation for agents
-- ⚡ **Fast** - Native Rust binary, ~1ms startup
-- 🔧 **Complete Control** - All 58 VESC commands supported
-- 📊 **Real-time Telemetry** - Motor values, temperatures, faults (34 error codes)
-- 💾 **Configuration** - Backup/restore MC and APP settings
-- 🔌 **Auto-Discovery** - Automatically finds VESC on USB
-- 🌐 **CAN Bus** - Multi-VESC network support
-- 📜 **LispBM** - Scripting support for advanced users
-- 🛡️ **Safe** - Dry-run mode, validation, comprehensive error handling
+- **🎯 Interactive Setup Workflow** - Conversational hardware discovery and safe configuration
+- **📊 Comprehensive Database** - 30+ VESC controllers, 50+ motors, 11 battery cells documented
+- **🤖 Agent-First Design** - HATEOAS-style JSON responses with suggested next actions
+- **⚡ High Performance** - Built with Bun for fast execution
+- **🔧 Full VESC Support** - Motor control, CAN bus, Lisp scripting, configuration management
+- **🛡️ Safety-First** - Built-in protection, validation, and progressive configuration
+- **📚 Self-Documenting** - Schema introspection for all commands
 
-## 🚀 Quick Install
+## 🚀 One Command Install
 
-### One-Line Installation
-
-**macOS & Linux:**
-```bash
-curl -sSL https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/master/install.sh | bash
-```
-
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/master/install.ps1 | iex
-```
-
-### Manual Installation
-
-1. **Install Rust** (if not already installed):
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   ```
-
-2. **Clone and Build:**
-   ```bash
-   git clone https://github.com/Can-0f-Tuna/VESC-CLI-.git
-   cd VESC-CLI-
-   cargo build --release
-   ```
-
-3. **Install:**
-   ```bash
-   cargo install --path .
-   ```
-
-## 🎯 Quick Start
-
-### 1. List Available Devices
-```bash
-vesc device list-ports
-```
-
-### 2. Connect to VESC
-```bash
-vesc device connect --port COM3
-# or auto-detect:
-vesc device connect
-```
-
-### 3. Get Motor Telemetry
-```bash
-vesc motor get-values --port COM3
-```
-
-### 4. Control Motor
-```bash
-# Set RPM
-vesc motor set-rpm 1000 --port COM3
-
-# Set current (Amps)
-vesc motor set-current 5.0 --port COM3
-
-# Stop motor
-vesc motor stop --port COM3
-```
-
-## 📖 Usage Guide
-
-### Device Commands
+Install both the CLI tool and the agent skill in one line:
 
 ```bash
-vesc device list-ports      # List all serial ports
-vesc device connect         # Connect and verify VESC
-vesc device info            # Get firmware version and hardware info
-vesc device ping            # Check connectivity
+bunx github:Can-0f-Tuna/veac/install
 ```
 
-### Motor Commands
+Or with npx (if you don't have Bun):
 
 ```bash
-vesc motor get-values              # Real-time telemetry (voltage, current, RPM, temp)
-vesc motor set-rpm <rpm>           # Set motor speed
-vesc motor set-duty <0.0-1.0>      # Set duty cycle
-vesc motor set-current <amps>     # Set motor current
-vesc motor set-current-brake <a>  # Apply current brake
-vesc motor stop                   # Emergency stop
+npx github:Can-0f-Tuna/veac/install
 ```
 
-### Configuration Commands
+This will:
+- ✅ Install the `veac` CLI globally
+- ✅ Install the VESC CLI skill for agent assistance
+- ✅ Build from source automatically
+- ✅ Set up all necessary dependencies
+
+### 🔄 Alternative Options
+
+**Skill-only install** (if you already have the CLI):
 
 ```bash
-vesc config get-mc              # Read motor controller config
-vesc config set-mc config.json  # Write motor controller config
-vesc config get-app             # Read app config
-vesc config set-app app.json    # Write app config
-vesc config backup backup.json  # Backup all configs
-vesc config restore backup.json # Restore from backup
+bunx skills add https://github.com/Can-0f-Tuna/veac.git --skill vesc-cli-skill
 ```
 
-### CAN Bus Commands (Multi-VESC)
+### 🔧 Advanced Install (Manual)
+
+For those who prefer full control or need to customize the installation:
 
 ```bash
-vesc can set-id 1               # Set CAN ID for this VESC
-vesc can scan                   # Discover VESCs on CAN bus
-vesc can forward 2 set-rpm 1000 # Send command to VESC #2
+# Clone the repository
+git clone https://github.com/Can-0f-Tuna/veac.git
+cd veac
+
+# Install dependencies and build
+bun install
+bun run build
+
+# Link globally (optional)
+bun link
+
+# Add the skill separately (optional)
+bunx skills add https://github.com/Can-0f-Tuna/veac.git --skill vesc-cli-skill
 ```
 
-### Schema & Discovery
+## 🎮 Usage
+
+### Quick Start
 
 ```bash
-vesc schema                     # Show all available commands
-vesc schema motor               # Show motor command schema
-vesc generate-completions bash  # Generate shell completions
+# List available VESC devices
+veac device list-ports
+
+# Connect to a VESC
+veac device connect --port /dev/ttyACM0
+
+# Get motor telemetry
+veac motor get-values
+
+# Control the motor
+veac motor set-rpm 1000
+veac motor set-current 5.0
+veac motor stop
 ```
 
-## 🤖 For AI Agents
+### Interactive Guided Setup
 
-Every command returns structured JSON with HATEOAS navigation:
+When you mention VESC without a specific command, the agent will guide you through an interactive setup:
 
-```bash
-$ vesc motor get-values
-{
-  "ok": true,
-  "command": "motor get-values",
-  "result": {
-    "input": { "voltage": 50.4, "current": 2.5 },
-    "motor": { "rpm": 1200, "current": 5.2, "duty_cycle": 0.65 },
-    "temperatures": { "mosfet": 42.0, "motor": 38.5 },
-    "fault": { "code": 0, "active": false }
-  },
-  "next_actions": [
-    { "command": "vesc motor stop", "description": "Stop the motor" },
-    { "command": "vesc motor set-rpm 1000", "description": "Set to 1000 RPM" }
-  ]
-}
+```
+🎯 VESC Guided Setup
+===================
+
+I'll help you configure your VESC safely. First, let me understand your hardware setup.
+
+Phase 1: Hardware Discovery
+1. Which VESC controller are you using?
+   (e.g., VESC 6 MkIII, VESC 75/300, VESC Express)
+
+2. What's your motor brand and kV rating?
+
+3. What's your battery configuration?
+
+[Agent analyzes your hardware and presents safe configuration presets]
+
+Configuration Presets Available:
+- 🛡️ Conservative: Safe for all hardware, ~60% capability
+- ⚖️ Balanced: Good performance with safety margin, ~80% capability
+- 🚀 Performance: Maximum safe performance, ~95% capability
+- ⚙️ Custom: Define your own parameters
+
+[After selection, the agent applies the configuration progressively with validation]
 ```
 
-### Exit Codes
+## 📦 Architecture
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | General error |
-| 2 | Connection failed |
-| 3 | Timeout |
-| 4 | Invalid argument |
-| 5 | Protocol error |
-
-## 🛠️ Advanced Features
-
-### Dry-Run Mode
-Preview changes without applying:
-```bash
-vesc config set-mc new-config.json --dry-run
+```
+veac/
+├── apps/
+│   └── cli/              # Main CLI application
+├── packages/
+│   ├── protocol/         # VESC binary protocol
+│   ├── serial/           # Serial communication
+│   ├── cli-core/         # Shared CLI utilities
+│   └── config/           # Configuration types
+├── vesc-cli-skill/       # Agent skill package
+│   ├── SKILL.md          # Skill entry point
+│   ├── references/       # Workflow guides, command reference
+│   └── information/      # Hardware database
+│       ├── controllers/  # 30+ VESC models documented
+│       ├── motors/       # 50+ BLDC motors
+│       └── batteries/    # Battery fundamentals + cell database
+└── examples/             # Usage examples
 ```
 
-### Terminal Mode
-Interactive REPL:
+## 📋 Commands
+
+### Device Operations
 ```bash
-vesc terminal --repl
+veac device list-ports       # List available serial ports
+veac device connect          # Connect to VESC (auto-detect or specify port)
+veac device info             # Get device information
+veac device ping             # Test connection
 ```
 
-### LispBM Scripting
+### Motor Control
 ```bash
-vesc lisp upload script.lisp    # Upload script
-vesc lisp start                 # Start execution
-vesc lisp repl "(+ 1 2 3)"      # Execute REPL command
+veac motor get-values        # Get telemetry (RPM, current, voltage, temp)
+veac motor set-rpm <rpm>     # Set target RPM
+veac motor set-current <A>   # Set motor current in Amps
+veac motor set-duty <0-1>    # Set duty cycle (0-100%)
+veac motor stop              # Stop motor safely
+veac motor set-current-brake # Apply regenerative braking
 ```
 
-## 📦 Installation Details
-
-### System Requirements
-
-- **OS**: Windows 10+, macOS 10.15+, Linux (most distributions)
-- **Architecture**: x86_64 or ARM64
-- **Serial**: USB port for VESC connection
-- **Optional**: Rust 1.70+ (only for building from source)
-
-### Where It's Installed
-
-| Platform | Location |
-|----------|----------|
-| macOS/Linux | `~/.local/bin/vesc` |
-| Windows | `%USERPROFILE%\.vesc-cli\bin\vesc.exe` |
-
-### Shell Completions
-
-Generate completions for your shell:
+### Configuration
 ```bash
-vesc generate-completions bash  # >> ~/.bashrc
-vesc generate-completions zsh   # >> ~/.zshrc
-vesc generate-completions fish  # >> ~/.config/fish/config.fish
+veac config get-mc           # Read motor configuration
+veac config get-mc --output mcconf.json
+veac config set-mc mcconf.json
+veac config get-app          # Read app configuration
+veac config backup --output backup.json
+veac config restore backup.json
 ```
 
-## 🔧 Building from Source
+### CAN Bus
+```bash
+veac can set-id <id>         # Set CAN ID for this VESC
+veac can scan                # Scan for VESCs on CAN bus
+veac can status              # Get CAN bus status
+veac can forward <id> <cmd>  # Forward command to another VESC
+```
+
+### Lisp Scripting
+```bash
+veac lisp upload script.lisp # Upload LispBM script
+veac lisp start              # Start Lisp execution
+veac lisp stop               # Stop Lisp execution
+veac lisp repl <code>        # Execute REPL command
+veac lisp get-stats          # Get Lisp statistics
+veac lisp erase              # Erase Lisp program
+```
+
+### Schema Introspection
+```bash
+veac schema                  # Get full command schema
+veac schema motor            # Get schema for motor commands
+veac schema motor set-rpm    # Get specific command schema
+```
+
+## 🛡️ Safety Features
+
+- **Progressive Configuration** - Apply settings in stages with validation
+- **Hardware Limits Checking** - Database-enforced limits based on your hardware
+- **Temperature Monitoring** - Automatic warnings and limits
+- **Dry Run Mode** - Preview changes with `--dry-run`
+- **Backup/Restore** - Full configuration backup before changes
+- **Fault Code Checking** - Automatic post-operation verification
+
+## 📚 Hardware Database
+
+The skill includes comprehensive documentation:
+
+### Controllers (30+ models)
+- Official VESC: 4.12, 6 (MKIII-MKVI), 75/300, 100/250, Express, HD60/HD75
+- VESC Labs 2025: Minim, Duet, Classic, Maxim series
+- Third-party: Flipsky, Makerbase, Spintend, TorqueBoards, Cheap FOCer
+
+### Motors (50+ variants)
+- E-skate: Maytech, Flipsky, TorqueBoards, BKB, Eovan
+- E-bike: Bafang, QS Motor, MXUS
+- Budget: Turnigy, Generic
+- Specialty: T-Motor (UAV/robotics)
+
+### Batteries
+- LiPo, Li-ion (18650, 21700), LiFePO4 fundamentals
+- Cell database: Samsung, LG, Sony, Molicel, Panasonic
+- BMS selection guide
+- Safety protocols and thermal runaway prevention
+
+## 🔧 Environment Variables
 
 ```bash
-# Clone repository
-git clone https://github.com/Can-0f-Tuna/VESC-CLI-.git
-cd VESC-CLI-
+VEAC_PORT=/dev/ttyACM0       # Default serial port
+VEAC_BAUD=115200             # Default baud rate
+VEAC_CAN_ID=1                # Default CAN ID
+```
 
-# Build release binary
-cargo build --release
+## 🧪 Development
+
+```bash
+# Install dependencies
+bun install
+
+# Run CLI in development mode
+bun run dev
+
+# Build all packages
+bun run build
 
 # Run tests
-cargo test
+bun run test
 
-# Install locally
-cargo install --path .
+# Run the CLI
+bun run veac --help
 ```
+
+## 📖 Documentation
+
+- [SKILL.md](vesc-cli-skill/SKILL.md) - Skill entry point and workflow guide
+- [references/commands.md](vesc-cli-skill/references/commands.md) - Complete command reference
+- [references/workflows.md](vesc-cli-skill/references/workflows.md) - Interactive setup guide
+- [references/examples.md](vesc-cli-skill/references/examples.md) - Usage examples
+- [information/controllers/](vesc-cli-skill/information/controllers/) - Controller database
+- [information/motors/](vesc-cli-skill/information/motors/) - Motor database
+- [information/batteries/](vesc-cli-skill/information/batteries/) - Battery database
 
 ## 🐛 Troubleshooting
 
-### "vesc: command not found"
-
-**macOS/Linux:**
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-source ~/.bashrc  # or ~/.zshrc
-```
-
-**Windows:**
-Restart your terminal, or run:
-```powershell
-$env:PATH = [Environment]::GetEnvironmentVariable("Path", "User")
-```
-
-### "No VESC found"
-
-1. Check USB connection
-2. Run `vesc device list-ports` to see available ports
-3. Try manual port: `vesc device connect --port COM3` (Windows) or `--port /dev/ttyACM0` (Linux)
-
-### Permission Denied (Linux)
-
-Add user to dialout group:
-```bash
-sudo usermod -a -G dialout $USER
-# Log out and back in
-```
-
-## 📝 Documentation
-
-- [Agent Guide](AGENTS.md) - Complete guide for AI agents
-- [CLI Context](CLI_CONTEXT.md) - VESC domain knowledge
-- [Architecture](orchestrator-agent-docs/architecture.md) - System design
-- [Examples](examples/) - Sample scripts and workflows
+See [references/troubleshooting.md](vesc-cli-skill/references/troubleshooting.md) for:
+- Connection issues
+- Motor control problems
+- CAN bus diagnostics
+- Configuration errors
+- Performance optimization
 
 ## 🤝 Contributing
 
-Contributions welcome! Areas we need help:
-
-- Binary protocol parsing improvements
-- Additional VESC commands
-- Better error messages
-- Documentation translations
-- CI/CD improvements
+Contributions welcome! Please read our contributing guidelines and submit PRs.
 
 ## 📄 License
 
-GPL-3.0 - See [LICENSE](LICENSE)
-
-## 🙏 Acknowledgments
-
-- [VESC Project](https://vesc-project.com/) by Benjamin Vedder
-- [Rust Community](https://www.rust-lang.org/community)
-- Contributors and testers
+GPL v3 - Following the VESC project licensing philosophy
 
 ---
 
-**Built with ❤️ for the VESC community**
-
-For support, open an [issue](https://github.com/Can-0f-Tuna/VESC-CLI-/issues) or join the discussion.
+**Made for makers, by makers.** Control your VESC with confidence. 🛹⚡🤖
