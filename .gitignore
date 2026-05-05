@@ -60,3 +60,8 @@ Cargo.lock
 *.bin
 *.zip
 *.lisp
+# Turborepo cache
+.turbo/
+
+# VESC Tool binary
+vesc_tool/
