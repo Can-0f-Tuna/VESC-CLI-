@@ -5,8 +5,10 @@
  * One-command installer that installs both the CLI tool and the agent skill.
  * 
  * Usage:
- *   bunx github:Can-0f-Tuna/veac/install
- *   npx github:Can-0f-Tuna/veac/install
+ *   curl -fsSL https://raw.githubusercontent.com/Can-0f-Tuna/veac/main/install.mjs | bun run
+ *   curl -fsSL https://raw.githubusercontent.com/Can-0f-Tuna/veac/main/install.mjs | node
+ *   npx veac-install
+ *   bunx veac-install
  *   node install.mjs
  * 
  * Options:
