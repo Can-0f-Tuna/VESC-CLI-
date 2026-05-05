@@ -26,12 +26,12 @@ A modern, lightweight CLI tool for controlling VESC (Vedder Electronic Speed Con
 
 **macOS & Linux:**
 ```bash
-curl -sSL https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/master/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/master/install.ps1 | iex
 ```
 
 ### Manual Installation

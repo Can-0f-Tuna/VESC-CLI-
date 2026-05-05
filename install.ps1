@@ -1,5 +1,5 @@
 # VESC CLI Installer for Windows
-# One-liner: irm https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/main/install.ps1 | iex
+# One-liner: irm https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/master/install.ps1 | iex
 
 param(
     [switch]$DevMode = $false
