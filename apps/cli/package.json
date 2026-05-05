@@ -1,0 +1,42 @@
+{
+  "name": "@veac/cli",
+  "version": "0.1.0",
+  "description": "Main CLI application for VESC motor controllers",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "veac": "./bin/veac.js",
+    "veac-cli": "./bin/veac.js"
+  },
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir ./dist --target node --external serialport --external @serialport/parser-readline",
+    "dev": "bun run --watch ./src/index.ts",
+    "start": "bun run ./dist/index.js",
+    "test": "bun test",
+    "lint": "tsc --noEmit && echo 'Type check passed'",
+    "check-types": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@commander-js/extra-typings": "^12.0.1",
+    "@veac/cli-core": "workspace:*",
+    "@veac/config": "workspace:*",
+    "@veac/protocol": "workspace:*",
+    "@veac/serial": "workspace:*",
+    "chalk": "^5.3.0",
+    "commander": "^12.0.0",
+    "ora": "^8.0.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.4.5"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  }
+}

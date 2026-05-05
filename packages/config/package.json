@@ -1,0 +1,29 @@
+{
+  "name": "@veac/config",
+  "version": "0.1.0",
+  "description": "Configuration types and validation for VESC motor and app configurations",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir ./dist --target node",
+    "dev": "bun run --watch ./src/index.ts",
+    "test": "bun test",
+    "lint": "tsc --noEmit && echo 'Type check passed'",
+    "check-types": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.4.5"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  }
+}

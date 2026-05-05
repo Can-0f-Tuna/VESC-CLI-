@@ -1,0 +1,37 @@
+{
+  "name": "@veac/protocol",
+  "version": "0.1.0",
+  "description": "VESC Binary Protocol Implementation for TypeScript/Bun",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "keywords": [
+    "vesc",
+    "protocol",
+    "motor",
+    "controller",
+    "binary",
+    "uart"
+  ],
+  "license": "MIT"
+}
