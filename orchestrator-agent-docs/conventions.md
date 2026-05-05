@@ -1,363 +1,403 @@
 # Conventions
 
-## Rust Coding Standards
+## TypeScript Coding Standards
 
 ### Naming Conventions
 
 | Item | Convention | Example |
 |------|------------|---------|
-| Modules | `snake_case` | `vesc_protocol`, `motor_commands` |
-| Types (structs/enums) | `PascalCase` | `VescConnection`, `CommandId` |
-| Traits | `PascalCase` | `Serializable`, `Connectable` |
-| Functions | `snake_case` | `encode_packet`, `get_values` |
-| Variables | `snake_case` | `port_name`, `baud_rate` |
+| Files/Directories | `kebab-case` | `vesc-protocol`, `motor-commands.ts` |
+| Types/Interfaces | `PascalCase` | `VescConnection`, `CommandId` |
+| Classes | `PascalCase` | `PacketEncoder`, `SerialConnection` |
+| Functions | `camelCase` | `encodePacket`, `getValues` |
+| Variables | `camelCase` | `portName`, `baudRate` |
 | Constants | `SCREAMING_SNAKE_CASE` | `PACKET_MAX_LEN`, `DEFAULT_BAUD` |
-| Static variables | `SCREAMING_SNAKE_CASE` | `CRC_TABLE` |
-| Enum variants | `PascalCase` | `GetValues`, `SetRpm` |
-| Type parameters | `PascalCase`, short | `T`, `K`, `V` |
-| Lifetimes | `snake_case`, short | `'a`, `'b`, `'conn` |
-| Features | `snake_case` | `async-runtime`, `usb-support` |
+| Enum members | `SCREAMING_SNAKE_CASE` | `COMM_GET_VALUES`, `COMM_SET_RPM` |
+| Type parameters | `T`, `K`, `V` | `<T>`, `<K, V>` |
+| Private fields | `_camelCase` or `#camelCase` | `_buffer`, `#connection` |
 
 ### Code Organization
 
-```rust
-// 1. Module documentation
-//! VESC Protocol Implementation
-//!
-//! Handles packet framing, CRC calculation, and command serialization.
+```typescript
+// 1. File header with SPDX license
+// SPDX-License-Identifier: GPL-3.0
 
-// 2. Imports (grouped: std, external, crate, super)
-use std::io;
-use std::time::Duration;
+/**
+ * VESC Protocol Implementation
+ * 
+ * Handles packet framing, CRC calculation, and command serialization.
+ */
 
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use anyhow::{Result, Context};
+// 2. Imports (grouped: external, internal)
+// External imports
+import { SerialPort } from 'serialport';
+import { z } from 'zod';
+import { ok, err, Result } from 'neverthrow';
 
-use crate::error::VescError;
-use super::commands::Command;
+// Internal imports (alphabetical)
+import { Command } from './commands';
+import { McValues } from '@veac/vesc-types';
+import { VescError } from './errors';
 
 // 3. Constants
-const PACKET_MAX_LEN: usize = 512;
-const DEFAULT_BAUD: u32 = 115200;
+const PACKET_MAX_LEN = 512;
+const DEFAULT_BAUD = 115200;
 
 // 4. Type definitions
-pub type PacketData = Vec<u8>;
+export type PacketData = Uint8Array;
 
-// 5. Struct definitions with derives
-#[derive(Debug, Clone, PartialEq)]
-pub struct Packet {
-    payload: Vec<u8>,
+// 5. Interface definitions
+export interface Packet {
+  payload: Uint8Array;
 }
 
-// 6. Trait implementations
-impl Default for Packet {
-    fn default() -> Self {
-        Self { payload: Vec::new() }
-    }
-}
+// 6. Class definitions
+export class PacketEncoder {
+  private crcTable: Uint16Array;
 
-// 7. Inherent implementations
-impl Packet {
-    /// Create a new packet with the given payload.
-    ///
-    /// # Errors
-    /// Returns `ProtocolError::PacketTooLarge` if payload exceeds 512 bytes.
-    pub fn new(payload: Vec<u8>) -> Result<Self, ProtocolError> {
-        if payload.len() > PACKET_MAX_LEN {
-            return Err(ProtocolError::PacketTooLarge(payload.len()));
-        }
-        Ok(Self { payload })
+  constructor() {
+    this.crcTable = this.generateCrcTable();
+  }
+
+  /**
+   * Encode a packet with framing and CRC.
+   * 
+   * @param payload - The packet payload
+   * @returns The encoded packet bytes
+   * @throws {VescError} If payload exceeds max length
+   */
+  encode(payload: Uint8Array): Result<Uint8Array, VescError> {
+    if (payload.length > PACKET_MAX_LEN) {
+      return err(new VescError('PacketTooLarge', `Payload ${payload.length} exceeds max ${PACKET_MAX_LEN}`));
     }
 
-    /// Encode packet into framed bytes.
-    pub fn encode(&self) -> Vec<u8> {
-        // Implementation
-    }
-}
+    const framed = this.addFraming(payload);
+    const withCrc = this.addCrc(framed);
+    
+    return ok(withCrc);
+  }
 
-// 8. Functions
-fn calculate_crc(data: &[u8]) -> u16 {
+  private addFraming(payload: Uint8Array): Uint8Array {
     // Implementation
+  }
+
+  private addCrc(data: Uint8Array): Uint8Array {
+    // Implementation
+  }
+
+  private generateCrcTable(): Uint16Array {
+    // Implementation
+  }
 }
 
-// 9. Tests
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_packet_encode() {
-        // Test implementation
-    }
+// 7. Function definitions
+/**
+ * Calculate CRC16 for VESC protocol.
+ * 
+ * @param data - The data to checksum
+ * @returns The CRC16 value
+ */
+export function calculateCrc(data: Uint8Array): number {
+  // Implementation
+  return 0;
 }
+
+// 8. Zod schemas (for runtime validation)
+export const McValuesSchema = z.object({
+  vIn: z.number(),
+  tempMos: z.number(),
+  tempMotor: z.number(),
+  currentMotor: z.number(),
+  currentIn: z.number(),
+  rpm: z.number(),
+  dutyNow: z.number(),
+  faultCode: z.number(),
+});
+
+export type McValuesValidated = z.infer<typeof McValuesSchema>;
+
+// 9. Export statements (at end of file)
+export { PacketEncoder, calculateCrc };
+export type { Packet };
 ```
 
 ### Documentation Style
 
-```rust
-/// Brief description of the item.
-///
-/// Longer description with more context, explaining what the function does,
-/// when to use it, and any important edge cases.
-///
-/// # Arguments
-///
-/// * `param1` - Description of first parameter
-/// * `param2` - Description of second parameter
-///
-/// # Returns
-///
-/// Description of the return value.
-///
-/// # Errors
-///
-/// Description of error conditions and when they occur.
-///
-/// # Examples
-///
-/// ```rust
-/// let result = my_function(42, "hello");
-/// assert_eq!(result, expected);
-/// ```
-///
-/// # Panics
-///
-/// Description of panic conditions (if applicable).
-pub fn my_function(param1: i32, param2: &str) -> Result<String, MyError> {
-    // Implementation
+```typescript
+/**
+ * Brief description of the function.
+ * 
+ * Longer description explaining what the function does,
+ * when to use it, and any important edge cases.
+ * 
+ * @param param1 - Description of first parameter
+ * @param param2 - Description of second parameter
+ * @returns Description of the return value
+ * @throws {VescError} Description of error conditions
+ * 
+ * @example
+ * ```typescript
+ * const result = myFunction(42, 'hello');
+ * if (result.isOk()) {
+ *   console.log(result.value);
+ * }
+ * ```
+ */
+export function myFunction(param1: number, param2: string): Result<string, VescError> {
+  // Implementation
 }
 ```
 
 ### Error Handling
 
-```rust
-// Use thiserror for error types
-use thiserror::Error;
+Use `neverthrow` for functional error handling:
 
-#[derive(Error, Debug)]
-pub enum VescError {
-    #[error("Connection failed to {port}: {source}")]
-    ConnectionFailed {
-        port: String,
-        #[source]
-        source: io::Error,
-    },
+```typescript
+import { ok, err, Result } from 'neverthrow';
 
-    #[error("Command timed out after {timeout_ms}ms")]
-    Timeout { timeout_ms: u64 },
-
-    #[error("Protocol error: {0}")]
-    Protocol(#[from] ProtocolError),
-
-    #[error("Invalid argument: {0}")]
-    InvalidArgument(String),
+// Error types
+export class VescError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+    public readonly cause?: unknown
+  ) {
+    super(message);
+    this.name = 'VescError';
+  }
 }
 
-// Use anyhow for application-level error handling
-use anyhow::{Result, Context};
-
-pub async fn connect(port: &str) -> Result<VescConnection> {
-    let stream = tokio_serial::new(port, 115200)
-        .open_native_async()
-        .with_context(|| format!("Failed to open serial port {}", port))?;
-
-    Ok(VescConnection::new(stream))
+// Function returning Result
+export async function connect(port: string): Promise<Result<SerialConnection, VescError>> {
+  try {
+    const connection = new SerialConnection(port);
+    await connection.open();
+    return ok(connection);
+  } catch (error) {
+    return err(new VescError('ConnectionFailed', `Failed to connect to ${port}`, error));
+  }
 }
+
+// Using the Result
+const result = await connect('/dev/ttyACM0');
+if (result.isErr()) {
+  console.error(`Error: ${result.error.message}`);
+  process.exit(1);
+}
+const connection = result.value;
 ```
 
 ### Async Patterns
 
-```rust
-// Prefer async/await over manual futures
-pub async fn send_command(&mut self, cmd: Command) -> Result<Response> {
-    let packet = cmd.to_packet();
-    self.stream.write_all(&packet.encode()).await?;
-    self.stream.flush().await?;
-    
-    // Use timeout for operations that may hang
-    let response = tokio::time::timeout(
-        Duration::from_millis(self.timeout_ms),
-        self.read_response()
-    ).await??;
-    
-    Ok(response)
+```typescript
+// Prefer async/await over Promise chains
+export async function sendCommand(connection: SerialConnection, cmd: Command): Promise<Result<Response, VescError>> {
+  const packet = encodeCommand(cmd);
+  
+  const writeResult = await connection.write(packet);
+  if (writeResult.isErr()) {
+    return err(writeResult.error);
+  }
+
+  // Use timeout for operations that may hang
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new VescError('Timeout', 'Command timed out')), 5000);
+  });
+
+  try {
+    const response = await Promise.race([
+      connection.readResponse(),
+      timeoutPromise
+    ]);
+    return ok(response);
+  } catch (error) {
+    return err(new VescError('Timeout', 'Command timed out', error));
+  }
 }
 
-// Use channels for streaming data
-use tokio::sync::mpsc;
+// Use EventEmitter or callbacks for streaming data
+import { EventEmitter } from 'events';
 
-pub async fn stream_values(
-    &mut self,
-    tx: mpsc::Sender<McValues>,
-) -> Result<()> {
-    loop {
-        let values = self.get_values().await?;
-        if tx.send(values).await.is_err() {
-            break; // Receiver dropped
-        }
-    }
-    Ok(())
+export class TelemetryStream extends EventEmitter {
+  private connection: SerialConnection;
+
+  constructor(connection: SerialConnection) {
+    super();
+    this.connection = connection;
+  }
+
+  start(): void {
+    this.connection.on('data', (data) => {
+      const values = parseTelemetry(data);
+      this.emit('values', values);
+    });
+  }
+
+  stop(): void {
+    this.connection.removeAllListeners('data');
+  }
 }
 ```
 
-### Clap Argument Definitions
+### Commander Argument Definitions
 
-```rust
-use clap::{Parser, Subcommand, Args};
+```typescript
+import { Command } from 'commander';
+import { z } from 'zod';
 
-#[derive(Parser)]
-#[command(name = "vesc-cli")]
-#[command(about = "VESC Motor Controller CLI")]
-#[command(version = "0.1.0")]
-pub struct Cli {
-    #[command(subcommand)]
-    pub command: Commands,
+// Schema validation
+const RpmArgsSchema = z.object({
+  rpm: z.coerce.number().int(),
+  duration: z.coerce.number().optional(),
+  port: z.string().optional(),
+});
 
-    /// Serial port path (auto-detect if not specified)
-    #[arg(short, long, global = true)]
-    pub port: Option<String>,
+export function createMotorCommand(): Command {
+  const motor = new Command('motor')
+    .description('Motor control commands');
 
-    /// Output format
-    #[arg(short, long, global = true, default_value = "auto")]
-    pub format: OutputFormat,
+  motor
+    .command('set-rpm')
+    .description('Set motor RPM')
+    .argument('<rpm>', 'Target RPM', parseInt)
+    .option('-d, --duration <seconds>', 'Duration in seconds', parseInt)
+    .option('-p, --port <path>', 'Serial port path')
+    .action(async (rpm, options) => {
+      const args = RpmArgsSchema.parse({ rpm, ...options });
+      
+      const result = await setRpm(args.rpm, args.duration);
+      
+      if (result.isErr()) {
+        console.error(`Error: ${result.error.message}`);
+        process.exit(1);
+      }
+
+      console.log(JSON.stringify(result.value, null, 2));
+    });
+
+  return motor;
 }
 
-#[derive(Subcommand)]
-pub enum Commands {
-    /// Device operations
-    Device {
-        #[command(subcommand)]
-        command: DeviceCommands,
-    },
-    /// Motor control
-    Motor {
-        #[command(subcommand)]
-        command: MotorCommands,
-    },
-}
+// In main CLI setup
+import { program } from 'commander';
 
-#[derive(Args)]
-pub struct SetRpmArgs {
-    /// Target RPM
-    pub rpm: i32,
+program
+  .name('veac')
+  .version('0.1.0')
+  .description('VESC Motor Controller CLI');
 
-    /// Duration in seconds (optional)
-    #[arg(short, long)]
-    pub duration: Option<u64>,
-}
+program.addCommand(createMotorCommand());
+program.addCommand(createDeviceCommand());
+
+program.parse();
 ```
 
 ### Test Conventions
 
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
+```typescript
+import { describe, it, expect, beforeEach } from 'bun:test';
+import { PacketEncoder } from './packet';
 
-    // Unit tests
-    #[test]
-    fn test_packet_encode_decode() {
-        let payload = vec![0x04];
-        let packet = Packet::new(payload.clone()).unwrap();
-        let encoded = packet.encode();
-        let (decoded, _) = Packet::decode(&encoded).unwrap().unwrap();
-        assert_eq!(decoded.payload, payload);
-    }
+describe('PacketEncoder', () => {
+  let encoder: PacketEncoder;
 
-    // Test error cases
-    #[test]
-    fn test_packet_too_large() {
-        let payload = vec![0u8; 1024];
-        let result = Packet::new(payload);
-        assert!(matches!(result, Err(ProtocolError::PacketTooLarge(_, _))));
-    }
+  beforeEach(() => {
+    encoder = new PacketEncoder();
+  });
 
-    // Async tests
-    #[tokio::test]
-    async fn test_connection() {
-        let mut conn = VescConnection::new("/dev/null".to_string(), 115200);
-        // Test implementation
-    }
-}
+  it('should encode a valid packet', () => {
+    const payload = new Uint8Array([0x04]);
+    const result = encoder.encode(payload);
+    
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap()).toBeInstanceOf(Uint8Array);
+  });
 
-// Integration tests in tests/ directory
-#[test]
-fn test_cli_help() {
-    let mut cmd = Command::cargo_bin("vesc-cli").unwrap();
-    cmd.arg("--help");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("VESC"));
-}
+  it('should return error for oversized packet', () => {
+    const payload = new Uint8Array(1024);
+    const result = encoder.encode(payload);
+    
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr().code).toBe('PacketTooLarge');
+  });
+});
+
+// Integration tests
+import { describe, it, expect } from 'bun:test';
+import { $ } from 'bun';
+
+describe('CLI Integration', () => {
+  it('should show help', async () => {
+    const result = await $`./dist/veac --help`.text();
+    expect(result).toContain('VESC');
+  });
+});
 ```
 
 ### Logging and Output
 
-```rust
-// Use tracing for structured logging
-use tracing::{info, warn, error, debug};
-
-pub async fn connect(&mut self) -> Result<()> {
-    info!(port = %self.port_name, baud = self.baud_rate, "Connecting to VESC");
-    
-    match self.try_connect().await {
-        Ok(()) => {
-            info!("Connected successfully");
-            Ok(())
-        }
-        Err(e) => {
-            error!(error = %e, "Connection failed");
-            Err(e)
-        }
-    }
+```typescript
+// Use console for CLI output (stdout/stderr)
+export function printJson<T>(data: T): void {
+  console.log(JSON.stringify(data, null, 2));
 }
 
-// CLI output goes to stdout/stderr, not logging
-pub fn print_json<T: Serialize>(data: &T) {
-    println!("{}", serde_json::to_string_pretty(data).unwrap());
+export function printError(err: VescError): void {
+  console.error(`Error [${err.code}]: ${err.message}`);
 }
 
-pub fn eprint_error(err: &VescError) {
-    eprintln!("Error: {}", err);
+// Use stderr for errors, stdout for results
+export function formatOutput(data: unknown, format: 'json' | 'yaml' | 'table'): void {
+  switch (format) {
+    case 'json':
+      console.log(JSON.stringify(data, null, 2));
+      break;
+    case 'yaml':
+      console.log(toYaml(data));
+      break;
+    case 'table':
+      console.log(toTable(data));
+      break;
+  }
 }
 ```
 
 ### Import Ordering
 
-```rust
+```typescript
 // 1. Standard library
-use std::collections::HashMap;
-use std::io;
-use std::time::Duration;
+import { EventEmitter } from 'events';
+import { readFileSync } from 'fs';
 
-// 2. External crates (alphabetical)
-use anyhow::{Context, Result};
-use clap::Parser;
-use serde::{Deserialize, Serialize};
-use tokio::time::timeout;
-use tokio_serial::SerialStream;
+// 2. External packages (alphabetical)
+import chalk from 'chalk';
+import { Command } from 'commander';
+import { Result, ok, err } from 'neverthrow';
+import { z } from 'zod';
 
-// 3. Internal modules (alphabetical)
-use crate::commands::motor::MotorCommands;
-use crate::error::VescError;
-use crate::vesc::connection::VescConnection;
+// 3. Internal workspace packages (alphabetical)
+import { McValues } from '@veac/vesc-types';
+import { VescProtocol } from '@veac/vesc-protocol';
 
-// 4. Super module (if in submodule)
-use super::protocol::Packet;
+// 4. Local imports (alphabetical)
+import { ConfigUtils } from './config-utils';
+import { formatOutput } from './output';
 ```
 
 ### File Headers
 
 All source files should include:
+- SPDX license identifier
 - Module documentation comment
-- License header (SPDX identifier)
 
-```rust
-//! VESC Protocol Implementation
-//!
-//! Implements packet framing and CRC for VESC communication.
-//!
-//! SPDX-License-Identifier: GPL-3.0
+```typescript
+// SPDX-License-Identifier: GPL-3.0
+
+/**
+ * VESC Protocol Implementation
+ * 
+ * Implements packet framing and CRC for VESC communication.
+ */
 
 // ... imports and code
 ```
@@ -382,6 +422,7 @@ Types:
 - `refactor`: Code refactoring
 - `test`: Test additions/changes
 - `chore`: Build/tooling changes
+- `build`: Build system changes
 
 Examples:
 ```
@@ -392,4 +433,52 @@ fix(connection): handle serial port disconnect during read
 docs(readme): update installation instructions
 
 test(motor): add integration tests for set-rpm command
+
+chore(deps): update bun to 1.0.20
+```
+
+## TypeScript Configuration
+
+### tsconfig.json (Root)
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@veac/*": ["./packages/*/src"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+### Package tsconfig.json
+
+```json
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "references": [
+    { "path": "../vesc-types" }
+  ]
+}
 ```

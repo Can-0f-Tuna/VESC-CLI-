@@ -23,41 +23,66 @@ Create a command-line interface that:
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| Language | **Rust** | Fast, safe, single-binary output |
-| CLI Framework | **clap** | Argument parsing, subcommands, help generation |
-| Serialization | **serde** | JSON/YAML output formatting |
-| Serial Communication | **tokio-serial** | Async serial port I/O |
-| Async Runtime | **tokio** | Non-blocking operations |
-| Output Formatting | **tabled** | Human-readable table output |
-| Error Handling | **anyhow** / **thiserror** | Structured error management |
+| Language | **TypeScript** | Type-safe, modern JavaScript runtime |
+| Runtime | **Bun** | Fast JavaScript runtime with built-in bundler |
+| Monorepo | **Turborepo** | Workspace management and build orchestration |
+| CLI Framework | **commander** | Argument parsing, subcommands, help generation |
+| Serialization | **zod** | Schema validation and type inference |
+| Serial Communication | **serialport** | Cross-platform serial port I/O |
+| Async Runtime | **Bun native** | Built-in async/await support |
+| Output Formatting | **cli-table3** | Human-readable table output |
+| Error Handling | **neverthrow** | Functional error handling |
+| Build Output | **Bun bundler** | Single executable generation |
 
-## Why Rust?
+## Why Bun?
 
-- **Single static binary** - No runtime dependencies, easy distribution
-- **~1ms startup time** - Fast command execution for automation
-- **Memory safety** - No crashes from protocol errors or buffer issues
-- **Excellent async support** - Built for real-time streaming and monitoring
-- **Cross-platform** - Native builds for Windows, macOS, Linux
+- **Single executable output** - `bun build --compile` creates standalone binaries
+- **~50ms startup time** - Fast command execution for automation
+- **Built-in TypeScript** - No transpilation step needed
+- **Native npm compatibility** - Access to entire npm ecosystem
+- **Cross-platform** - Builds for Windows, macOS, Linux
+- **Built-in bundler** - No webpack/rollup configuration needed
+- **Faster than Node.js** - Optimized JavaScriptCore engine
 
 ## Quick Start
 
 ```bash
+# Install dependencies
+bun install
+
 # Build the project
-cargo build --release
+bun run build
 
 # Run the CLI
-./target/release/vesc-cli --help
+./dist/veac --help
 
 # Connect to a VESC
-vesc-cli device connect --port /dev/ttyACM0
+veac device connect --port /dev/ttyACM0
 
 # Get motor telemetry
-vesc-cli motor get-values --format json
+veac motor get-values --format json
+```
+
+## Workspace Structure
+
+This is a Turborepo monorepo with the following structure:
+
+```
+veac/
+├── apps/
+│   └── cli/              # Main CLI application
+├── packages/
+│   ├── vesc-protocol/    # VESC communication protocol
+│   ├── vesc-types/       # Shared TypeScript types
+│   └── config-utils/     # Configuration file handling
+├── turbo.json            # Turborepo pipeline config
+├── package.json          # Workspace root manifest
+└── bun.lockb             # Bun lockfile
 ```
 
 ## Project Status
 
-🟡 **Phase: Planning Complete** → Ready for implementation
+🟡 **Phase: Migration in Progress** → Stage 3/10: Documentation Update
 
 See [state.md](./state.md) for detailed progress tracking.
 
@@ -66,10 +91,10 @@ See [state.md](./state.md) for detailed progress tracking.
 | Document | Purpose |
 |----------|---------|
 | [architecture.md](./architecture.md) | System design and VESC protocol details |
-| [file-structure.md](./file-structure.md) | Planned directory layout |
-| [conventions.md](./conventions.md) | Rust coding standards and naming |
+| [file-structure.md](./file-structure.md) | Turborepo workspace layout |
+| [conventions.md](./conventions.md) | TypeScript coding standards |
 | [commands.md](./commands.md) | Build, test, and development commands |
-| [dependencies.md](./dependencies.md) | Required crates and versions |
+| [dependencies.md](./dependencies.md) | Required npm packages |
 | [state.md](./state.md) | Current implementation status |
 | [modules/](./modules/) | Module-specific documentation |
 
@@ -79,6 +104,8 @@ See [state.md](./state.md) for detailed progress tracking.
 - **VESC Firmware**: https://github.com/vedderb/bldc
 - **VESC Documentation**: https://vedderb-bldc.mintlify.app/
 - **VESC Tool (existing)**: https://github.com/vedderb/vesc_tool
+- **Bun Documentation**: https://bun.sh/docs
+- **Turborepo**: https://turbo.build/repo
 
 ## License
 

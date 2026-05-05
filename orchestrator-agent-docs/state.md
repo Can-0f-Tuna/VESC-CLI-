@@ -2,189 +2,226 @@
 
 ## Current Status
 
-🟢 **ALL SPRINTS COMPLETE** — ✅ READY FOR RELEASE v0.1.0
+🟡 **MIGRATION IN PROGRESS** — Stage 3/10: Documentation Update
 
-| Sprint | Status | Key Deliverables |
-|--------|--------|-----------------|
-| Sprint 1: Foundation | ✅ Complete | Protocol, Connection, CLI structure |
-| Sprint 2: Core Commands | ✅ Complete | Motor telemetry (18 fields, 34 faults) |
-| Sprint 3: Configuration | ✅ Complete | MC/APP config, backup/restore |
-| Sprint 4: Advanced | ✅ Complete | CAN bus, LispBM, Terminal mode |
-| Sprint 5: Polish | ✅ Complete | AGENTS.md, CI/CD, examples |
+### Migration Stages
+
+| Stage | Status | Description |
+|-------|--------|-------------|
+| 1. Planning | ✅ Complete | Migration plan created, architecture decisions documented |
+| 2. Workspace Setup | ✅ Complete | Turborepo initialized, basic structure created |
+| 3. Documentation Update | 🔄 In Progress | Updating orchestrator-agent-docs for Bun architecture |
+| 4. Package Migration | ⏳ Pending | Migrate protocol layer packages |
+| 5. CLI Migration | ⏳ Pending | Migrate CLI application to Bun/TypeScript |
+| 6. Testing | ⏳ Pending | Update tests for new architecture |
+| 7. Build System | ⏳ Pending | Configure Bun compile and Turbo pipelines |
+| 8. CI/CD Update | ⏳ Pending | Update GitHub Actions for Bun |
+| 9. Validation | ⏳ Pending | Verify all functionality preserved |
+| 10. Release | ⏳ Pending | v0.1.0 release with Bun architecture |
 
 ## Overview
 
-All planning and research phases have been completed. The project is ready to begin active implementation.
+The project is migrating from **Rust** to **Bun + Turborepo** while preserving all VESC protocol functionality and AI-agent design principles.
 
-### Completed Work ✅
+### Original Architecture (Rust)
+- Language: Rust
+- Build: Cargo
+- CLI: Clap
+- Async: Tokio
+- Output: Single static binary
 
-1. **Research Phase**
-   - ✅ CLI design best practices research (CLI Spec, Agent CLI Guide)
-   - ✅ VESC protocol documentation analysis
-   - ✅ Framework comparison (Node.js, Python, Rust, Go)
-   - ✅ Existing VESC Tool codebase analysis
-   - ✅ Technology stack selection (Rust + Clap)
+### New Architecture (Bun)
+- Language: TypeScript
+- Build: Bun + Turborepo
+- CLI: Commander
+- Async: Bun native
+- Output: Single compiled executable
 
-2. **Architecture Planning**
-   - ✅ System architecture design
-   - ✅ Module structure definition
-   - ✅ Command structure (noun-verb pattern)
-   - ✅ VESC protocol implementation strategy
-   - ✅ AI-agent features (schema introspection)
+### What Stays the Same
+- VESC protocol implementation
+- Command structure (noun-verb pattern)
+- JSON output format for AI agents
+- Schema introspection capabilities
+- Exit code standards
+- AI-agent design principles
 
-3. **Starter Implementation**
-   - ✅ Protocol module design (packet encoding/decoding)
-   - ✅ Command enum definitions
-   - ✅ Connection management design
-   - ✅ CLI argument structure (clap derive macros)
-   - ✅ Example code for all core modules
+### What Changes
+- Technology stack (Rust → TypeScript/Bun)
+- Project structure (Cargo → Turborepo)
+- Build system (cargo → bun build)
+- Package management (crates → npm workspaces)
+- Type system (Rust types → TypeScript interfaces + Zod)
+- Error handling (Result<T,E> → neverthrow)
 
-4. **Documentation**
-   - ✅ Project README created
-   - ✅ Architecture documentation
-   - ✅ File structure documentation
-   - ✅ Coding conventions established
-   - ✅ Dependencies documented
-   - ✅ Build/test commands documented
-   - ✅ Orchestrator agent docs (this directory)
+## Completed Work ✅
 
-### Implementation Roadmap
+### Stage 1: Planning
+- ✅ Migration strategy documented
+- ✅ Technology selection validated
+- ✅ Architecture compatibility verified
+- ✅ Risk assessment completed
 
-#### Sprint 1: Foundation (Weeks 1-2) — Next Up
+### Stage 2: Workspace Setup
+- ✅ Root package.json created
+- ✅ turbo.json configured
+- ✅ Workspace structure defined (apps/, packages/)
+- ✅ TypeScript configuration set up
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Set up Rust project structure | 🔄 Ready | High |
-| Implement VESC protocol (packet framing, CRC) | 🔄 Ready | High |
-| Implement basic serial connection | 🔄 Ready | High |
-| Add device discovery (list-ports) | 🔄 Ready | High |
-| Implement COMM_FW_VERSION command | 🔄 Ready | High |
+### Stage 3: Documentation Update (In Progress)
+- ✅ README.md updated for Bun
+- ✅ architecture.md updated for TypeScript types
+- ✅ file-structure.md rewritten for Turborepo
+- ✅ dependencies.md converted to npm packages
+- ✅ commands.md updated for bun commands
+- ✅ conventions.md converted to TypeScript standards
+- 🔄 state.md (this file) being updated
 
-#### Sprint 2: Core Commands (Weeks 3-4)
+## Remaining Work
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Device commands (connect, info, ping) | ⏳ Planned | High |
-| Motor commands (get-values, set-rpm, set-current, stop) | ⏳ Planned | High |
-| Output formatting (JSON, table) | ⏳ Planned | High |
-| TTY detection | ⏳ Planned | Medium |
-| Schema generation | ⏳ Planned | Medium |
-
-#### Sprint 3: Configuration (Weeks 5-6)
-
-| Task | Status | Priority |
-|------|--------|----------|
-| Config read/write (MC conf, APP conf) | ⏳ Planned | High |
-| XML serialization/deserialization | ⏳ Planned | High |
-| Backup/restore functionality | ⏳ Planned | Medium |
-| Dry-run support | ⏳ Planned | Low |
-
-#### Sprint 4: Advanced Features (Weeks 7-8)
+### Stage 4: Package Migration
 
 | Task | Status | Priority |
 |------|--------|----------|
-| Motor detection commands | ⏳ Planned | Medium |
-| CAN bus operations | ⏳ Planned | Low |
-| Firmware updates | ⏳ Planned | Medium |
-| LispBM support | ⏳ Planned | Low |
-| Terminal commands | ⏳ Planned | Low |
+| Create `packages/vesc-types` | ⏳ Pending | High |
+| Port Rust datatypes to TypeScript | ⏳ Pending | High |
+| Create `packages/vesc-protocol` | ⏳ Pending | High |
+| Implement packet encoding/decoding | ⏳ Pending | High |
+| Implement CRC16 calculation | ⏳ Pending | High |
+| Create `packages/config-utils` | ⏳ Pending | Medium |
+| Port XML serialization | ⏳ Pending | Medium |
 
-#### Sprint 5: Polish & AI-Agent Ready (Weeks 9-10)
+### Stage 5: CLI Migration
 
 | Task | Status | Priority |
 |------|--------|----------|
-| Comprehensive error handling | ⏳ Planned | High |
-| Exit code standardization | ⏳ Planned | High |
-| Schema introspection complete | ⏳ Planned | High |
-| AGENTS.md and CONTEXT.md documentation | ⏳ Planned | Medium |
-| Integration tests | ⏳ Planned | Medium |
-| Shell completions | ⏳ Planned | Low |
-| Packaging (cargo install, homebrew) | ⏳ Planned | Low |
+| Create `apps/cli` structure | ⏳ Pending | High |
+| Set up Commander CLI | ⏳ Pending | High |
+| Port device commands | ⏳ Pending | High |
+| Port motor commands | ⏳ Pending | High |
+| Port config commands | ⏳ Pending | Medium |
+| Port remaining command categories | ⏳ Pending | Medium |
+| Implement output formatters | ⏳ Pending | Medium |
+| Implement schema introspection | ⏳ Pending | Medium |
+
+### Stage 6: Testing
+
+| Task | Status | Priority |
+|------|--------|----------|
+| Set up Bun test framework | ⏳ Pending | High |
+| Port protocol unit tests | ⏳ Pending | High |
+| Create integration tests | ⏳ Pending | Medium |
+| Create mock VESC for testing | ⏳ Pending | Medium |
+
+### Stage 7: Build System
+
+| Task | Status | Priority |
+|------|--------|----------|
+| Configure Turbo pipelines | ⏳ Pending | High |
+| Set up `bun build --compile` | ⏳ Pending | High |
+| Configure package builds | ⏳ Pending | Medium |
+| Set up watch mode for dev | ⏳ Pending | Low |
+
+### Stage 8: CI/CD Update
+
+| Task | Status | Priority |
+|------|--------|----------|
+| Update GitHub Actions for Bun | ⏳ Pending | Medium |
+| Configure cross-platform builds | ⏳ Pending | Medium |
+| Update release workflow | ⏳ Pending | Low |
+
+### Stage 9: Validation
+
+| Task | Status | Priority |
+|------|--------|----------|
+| Test all commands against VESC hardware | ⏳ Pending | High |
+| Verify JSON output compatibility | ⏳ Pending | High |
+| Verify schema introspection | ⏳ Pending | Medium |
+| Performance comparison | ⏳ Pending | Low |
+
+### Stage 10: Release
+
+| Task | Status | Priority |
+|------|--------|----------|
+| Update version to 0.1.0 | ⏳ Pending | High |
+| Create release notes | ⏳ Pending | Medium |
+| Publish packages | ⏳ Pending | Low |
 
 ## Entry Points for Sub-Agents
 
-When starting implementation, sub-agents should:
+When continuing implementation, sub-agents should:
 
 1. **Read this directory first**: All context needed is in `orchestrator-agent-docs/`
-2. **Start with Sprint 1**: Foundation layer (protocol, connection)
-3. **Follow conventions.md**: Rust naming and code style
-4. **Reference CLI_IMPLEMENTATION_STARTER.md**: Contains starter code examples
+2. **Start with Stage 4**: Package layer (vesc-types, vesc-protocol)
+3. **Follow conventions.md**: TypeScript naming and code style
+4. **Reference updated docs**: All documentation now reflects Bun architecture
 5. **Test incrementally**: Use commands.md for build/test workflow
-
-## Files Ready for Implementation
-
-The following files contain starter code ready to be copied/adapted:
-
-| Source | Destination | Purpose |
-|--------|-------------|---------|
-| `CLI_IMPLEMENTATION_STARTER.md` | `src/vesc/protocol.rs` | Packet encoding/decoding |
-| `CLI_IMPLEMENTATION_STARTER.md` | `src/vesc/commands.rs` | Command definitions |
-| `CLI_IMPLEMENTATION_STARTER.md` | `src/vesc/connection.rs` | Serial connection |
-| `CLI_IMPLEMENTATION_STARTER.md` | `src/cli/args.rs` | CLI arguments |
-| `CLI_IMPLEMENTATION_STARTER.md` | `src/main.rs` | Entry point |
-| `CLI_IMPLEMENTATION_STARTER.md` | `tests/integration_test.rs` | Test suite |
-
-## Blockers & Dependencies
-
-### No Current Blockers ✅
-
-- Technology stack selected and validated
-- Protocol documentation complete
-- Starter code examples provided
-- All dependencies available on crates.io
-
-### Future Considerations
-
-- **Hardware Testing**: Will need physical VESC hardware for integration testing
-- **Cross-Compilation**: May need additional setup for Windows/macOS builds
-- **Bluetooth/USB Direct**: Optional features for future sprints
 
 ## Success Criteria
 
-Sprint 1 is complete when:
-- [ ] `cargo build` succeeds
-- [ ] `cargo test` passes
-- [ ] `vesc-cli device list-ports` works
-- [ ] `vesc-cli device connect --port /dev/ttyACM0` connects
-- [ ] `vesc-cli device info` returns firmware version
+### Stage 3 Complete (Documentation)
+- ✅ All orchestrator-agent-docs updated to Bun architecture
+- ✅ Technology references converted (Rust → TypeScript/Bun)
+- ✅ File structure documented for Turborepo
+- ✅ Dependencies documented as npm packages
 
-Full project is complete when:
+### Migration Complete When:
+- [ ] `bun install` succeeds
+- [ ] `bun run build` produces `dist/veac` executable
+- [ ] `bun test` passes
+- [ ] `veac device list-ports` works
+- [ ] `veac device connect --port /dev/ttyACM0` connects
+- [ ] `veac device info` returns firmware version
 - [ ] All 160+ VESC commands implemented
 - [ ] JSON output working for all commands
 - [ ] Schema introspection working
-- [ ] Integration tests passing
-- [ ] Documentation complete
-- [ ] Single binary distribution working
+- [ ] Single executable distribution working
 
 ## Next Actions
 
-1. Create `Cargo.toml` with dependencies
-2. Create `src/vesc/protocol.rs` with packet encoding/decoding
-3. Create `src/vesc/connection.rs` with serial connection
-4. Create `src/cli/args.rs` with clap argument definitions
-5. Create `src/main.rs` entry point
-6. Run `cargo build` to verify setup
-7. Write first test: packet encode/decode
-8. Implement `device list-ports` command
+### Immediate (Stage 3 Complete)
+1. ✅ Update README.md
+2. ✅ Update architecture.md
+3. ✅ Update file-structure.md
+4. ✅ Update dependencies.md
+5. ✅ Update commands.md
+6. ✅ Update conventions.md
+7. ✅ Update state.md (in progress)
+
+### Next Up (Stage 4)
+1. Create `packages/vesc-types/src/datatypes.ts`
+2. Port Rust data structures to TypeScript interfaces
+3. Create `packages/vesc-protocol/src/packet.ts`
+4. Implement packet encoding/decoding
+5. Create `packages/vesc-protocol/src/crc.ts`
+6. Port CRC16 implementation to TypeScript
 
 ## Resources Available
 
-- **Planning Documents** (root directory):
-  - `CLI_TRANSFORMATION_PLAN.md` - Full transformation strategy
-  - `CLI_CONTEXT.md` - VESC context and concepts
-  - `CLI_IMPLEMENTATION_STARTER.md` - Starter code examples
-  - `RESEARCH_SUMMARY.md` - Research findings
+### Planning Documents (root directory)
+- `CLI_TRANSFORMATION_PLAN.md` - Original transformation strategy
+- `CLI_CONTEXT.md` - VESC context and concepts
+- `MIGRATION_PLAN.md` - Bun migration strategy (if exists)
 
-- **Orchestrator Docs** (this directory):
-  - `README.md` - Project overview
-  - `architecture.md` - System design
-  - `file-structure.md` - Directory layout
-  - `conventions.md` - Coding standards
-  - `commands.md` - Build/test commands
-  - `dependencies.md` - Crate dependencies
-  - `state.md` - This file
+### Updated Orchestrator Docs (this directory)
+- `README.md` - Project overview (Bun architecture)
+- `architecture.md` - System design (TypeScript types)
+- `file-structure.md` - Turborepo workspace layout
+- `conventions.md` - TypeScript coding standards
+- `commands.md` - Bun build/test commands
+- `dependencies.md` - npm package dependencies
+- `state.md` - This file
 
-- **External**:
-  - VESC Protocol: https://vedderb-bldc.mintlify.app/communication/uart-protocol
-  - Clap Docs: https://docs.rs/clap/latest/clap/
-  - Tokio Serial: https://docs.rs/tokio-serial/latest/tokio_serial/
+### External
+- VESC Protocol: https://vedderb-bldc.mintlify.app/communication/uart-protocol
+- Bun Docs: https://bun.sh/docs
+- Turborepo: https://turbo.build/repo
+- Commander: https://github.com/tj/commander.js
+
+## Risk Tracking
+
+| Risk | Mitigation | Status |
+|------|------------|--------|
+| serialport compatibility with Bun | Test early in Stage 4 | ⏳ Pending |
+| Cross-compilation with Bun | Validate in Stage 8 | ⏳ Pending |
+| Performance vs Rust | Benchmark in Stage 9 | ⏳ Pending |
+| TypeScript type accuracy | Thorough testing in Stage 6 | ⏳ Pending |

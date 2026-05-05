@@ -4,264 +4,332 @@
 
 ### CLI Framework
 
-```toml
-[dependencies]
-# CLI framework with derive macros, subcommands, and help generation
-clap = { version = "4.5", features = ["derive", "cargo", "env"] }
+```json
+{
+  "dependencies": {
+    "commander": "^11.1.0"
+  }
+}
 ```
 
 **Purpose**: Command-line argument parsing, subcommand handling, automatic help generation, shell completion support.
 
-**Why clap**: Industry standard for Rust CLIs, derive macros reduce boilerplate, excellent documentation.
+**Why commander**: Battle-tested, widely used, excellent TypeScript support, straightforward API.
 
-### Serialization
+### Type Safety and Validation
 
-```toml
-[dependencies]
-# JSON/YAML serialization framework
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
+```json
+{
+  "dependencies": {
+    "zod": "^3.22.0",
+    "@types/node": "^20.10.0"
+  }
+}
 ```
 
-**Purpose**: Structured output formatting (JSON/YAML), configuration file parsing.
+**Purpose**: Runtime schema validation, type inference from schemas, input validation.
 
-**Why serde**: De facto standard for Rust serialization, zero-cost abstractions, extensive ecosystem.
+**Why zod**: TypeScript-first, excellent error messages, composable schemas.
 
 ### Serial Communication
 
-```toml
-[dependencies]
-# Async serial port communication
-tokio-serial = "5.4"
-
-# Alternative: synchronous serial (backup option)
-serialport = "4.3"
+```json
+{
+  "dependencies": {
+    "serialport": "^12.0.0"
+  }
+}
 ```
 
-**Purpose**: Serial port I/O for USB CDC/UART communication with VESC.
+**Purpose**: Cross-platform serial port I/O for USB CDC/UART communication with VESC.
 
-**Why tokio-serial**: Async support integrates with tokio runtime, non-blocking I/O for real-time operations.
-
-### Async Runtime
-
-```toml
-[dependencies]
-# Async runtime with full features
-tokio = { version = "1.35", features = ["full"] }
-tokio-util = "0.7"
-```
-
-**Purpose**: Async/await support, timeouts, channels for streaming data.
-
-**Why tokio**: Most popular Rust async runtime, excellent performance, rich ecosystem.
+**Why serialport**: Industry standard for Node.js/Bun serial communication, cross-platform support, active maintenance.
 
 ### Output Formatting
 
-```toml
-[dependencies]
-# Table formatting for human-readable output
-tabled = "0.14"
-
-# Terminal color support
-colored = "2.1"
-
-# TTY detection for auto-format
-atty = "0.2"
+```json
+{
+  "dependencies": {
+    "cli-table3": "^0.6.3",
+    "chalk": "^5.3.0"
+  }
+}
 ```
 
-**Purpose**: Human-friendly table output, colored terminal output, automatic JSON detection when piped.
+**Purpose**: Human-friendly table output, colored terminal output.
+
+**Why cli-table3**: Simple API, good column sizing, works in both Node.js and Bun.
+**Why chalk**: Standard for terminal colors, widely adopted.
 
 ### Error Handling
 
-```toml
-[dependencies]
-# Flexible error handling with context
-anyhow = "1.0"
-
-# Structured error types with thiserror derive
-thiserror = "1.0"
+```json
+{
+  "dependencies": {
+    "neverthrow": "^6.1.0"
+  }
+}
 ```
 
-**Purpose**: Application-level error handling (`anyhow`), library error types (`thiserror`).
+**Purpose**: Functional error handling with Result types.
 
-**Why**: `anyhow` for easy error propagation in application code, `thiserror` for defining rich error types in libraries.
+**Why neverthrow**: Type-safe error handling without exceptions, Rust-like Result type in TypeScript.
 
-### CRC Calculation
+### YAML Support
 
-```toml
-[dependencies]
-# CRC calculation for packet validation
-crc = "3.0"
+```json
+{
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "@types/js-yaml": "^4.0.9"
+  }
+}
 ```
 
-**Purpose**: IBM SDLC CRC16 calculation for VESC packet framing.
+**Purpose**: YAML output formatting, YAML config file parsing.
 
 ### XML Parsing
 
-```toml
-[dependencies]
-# XML serialization/deserialization for config files
-quick-xml = { version = "0.31", features = ["serialize"] }
+```json
+{
+  "dependencies": {
+    "fast-xml-parser": "^4.3.0"
+  }
+}
 ```
 
 **Purpose**: Reading/writing VESC configuration XML files.
 
-### Logging
-
-```toml
-[dependencies]
-# Structured logging
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-```
-
-**Purpose**: Debug logging, structured traces for troubleshooting.
+**Why fast-xml-parser**: Fast, lightweight, supports both parsing and building XML.
 
 ## Development Dependencies
 
-```toml
-[dev-dependencies]
-# CLI testing framework
-assert_cmd = "2.0"
-
-# Predicate assertions for testing
-predicates = "3.1"
-
-# Temporary file/directory management
-tempfile = "3.9"
-
-# Pretty assertions for better test output
-pretty_assertions = "1.4"
+```json
+{
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "@types/bun": "^1.0.0",
+    "prettier": "^3.1.0",
+    "turbo": "^1.11.0"
+  }
+}
 ```
 
-## Optional Dependencies (Future)
+| Package | Purpose |
+|---------|---------|
+| `typescript` | Type checking and compilation |
+| `@types/bun` | Bun-specific type definitions |
+| `prettier` | Code formatting |
+| `turbo` | Workspace build orchestration |
 
-```toml
-[dependencies]
-# Bluetooth support (optional feature)
-# btleplug = "0.11"
+## Workspace Package References
 
-# USB HID support for direct USB (optional feature)
-# hidapi = "2.4"
+### Internal Dependencies
 
-# TCP/UDP networking for TCP hub (optional feature)
-# tokio-tungstenite = "0.21"  # WebSocket
+Packages use `workspace:*` protocol for internal dependencies:
 
-# Configuration file support (optional)
-# config = "0.14"
-# dirs = "5.0"  # Platform-appropriate config directories
-
-# Progress bars for long operations (optional)
-# indicatif = "0.17"
+```json
+{
+  "dependencies": {
+    "@veac/vesc-types": "workspace:*",
+    "@veac/vesc-protocol": "workspace:*",
+    "@veac/config-utils": "workspace:*"
+  }
+}
 ```
 
-## Complete Cargo.toml Example
+This ensures:
+- Automatic version synchronization
+- Local development with live changes
+- Monorepo-aware dependency resolution
 
-```toml
-[package]
-name = "vesc-cli"
-version = "0.1.0"
-edition = "2021"
-authors = ["Your Name <email@example.com>"]
-license = "GPL-3.0"
-description = "CLI for VESC motor controllers"
-repository = "https://github.com/yourusername/vesc-cli"
-keywords = ["vesc", "motor", "cli", "embedded"]
-categories = ["command-line-utilities", "hardware-support"]
-rust-version = "1.70"
+## Complete package.json Example
 
-[[bin]]
-name = "vesc-cli"
-path = "src/main.rs"
+### apps/cli/package.json
 
-[dependencies]
-# CLI
-clap = { version = "4.5", features = ["derive", "cargo", "env"] }
+```json
+{
+  "name": "@veac/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "veac": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc && bun build --compile ./dist/index.js --outfile ../../dist/veac",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "zod": "^3.22.0",
+    "cli-table3": "^0.6.3",
+    "chalk": "^5.3.0",
+    "js-yaml": "^4.1.0",
+    "neverthrow": "^6.1.0",
+    "@veac/vesc-protocol": "workspace:*",
+    "@veac/vesc-types": "workspace:*",
+    "@veac/config-utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/js-yaml": "^4.0.9",
+    "typescript": "^5.3.0"
+  }
+}
+```
 
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
+### packages/vesc-protocol/package.json
 
-# Async runtime
-tokio = { version = "1.35", features = ["full"] }
-tokio-util = "0.7"
+```json
+{
+  "name": "@veac/vesc-protocol",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "serialport": "^12.0.0",
+    "neverthrow": "^6.1.0",
+    "@veac/vesc-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}
+```
 
-# Serial communication
-tokio-serial = "5.4"
+### packages/vesc-types/package.json
 
-# Output formatting
-tabled = "0.14"
-colored = "2.1"
-atty = "0.2"
+```json
+{
+  "name": "@veac/vesc-types",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
+```
 
-# Error handling
-anyhow = "1.0"
-thiserror = "1.0"
+### packages/config-utils/package.json
 
-# CRC calculation
-crc = "3.0"
-
-# XML parsing
-quick-xml = { version = "0.31", features = ["serialize"] }
-
-# Logging
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
-[dev-dependencies]
-assert_cmd = "2.0"
-predicates = "3.1"
-tempfile = "3.9"
-pretty_assertions = "1.4"
-
-[features]
-default = []
-# usb-direct = ["hidapi"]  # Future: direct USB HID support
-# bluetooth = ["btleplug"]  # Future: BLE support
-
-[profile.release]
-opt-level = 3
-lto = true
-codegen-units = 1
-strip = true
-panic = "abort"
-
-[profile.dev]
-opt-level = 0
-debug = true
+```json
+{
+  "name": "@veac/config-utils",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.3.0",
+    "zod": "^3.22.0",
+    "@veac/vesc-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}
 ```
 
 ## Version Constraints
 
-| Crate | Min Version | Notes |
-|-------|-------------|-------|
-| clap | 4.5 | Derive macros stable |
-| serde | 1.0 | Stable API |
-| tokio | 1.35 | Full features needed |
-| tokio-serial | 5.4 | Async serial stable |
-| crc | 3.0 | Latest API |
-| quick-xml | 0.31 | Serialize feature needed |
+| Package | Min Version | Notes |
+|---------|-------------|-------|
+| commander | 11.1.0 | ESM support stable |
+| zod | 3.22.0 | Type inference stable |
+| serialport | 12.0.0 | Latest stable API |
+| bun | 1.0.0 | Required for --compile |
+| turbo | 1.11.0 | Workspace protocol support |
+| typescript | 5.3.0 | Satisfies all packages |
 
-## Feature Flags
+## Bun-Specific Dependencies
 
-Future optional features:
+### Native Modules
 
-```rust
-// In code
-#[cfg(feature = "bluetooth")]
-pub mod bluetooth;
+Some packages may require native bindings. Bun handles these differently:
 
-#[cfg(feature = "usb-direct")]
-pub mod usb_hid;
+```json
+{
+  "trustedDependencies": [
+    "serialport",
+    "@serialport/bindings"
+  ]
+}
 ```
+
+Add to root `package.json` to allow native module compilation.
 
 ## Security Considerations
 
 All dependencies are:
-- **Widely used**: Popular crates with large user bases
+- **Widely used**: Popular packages with large user bases
 - **Actively maintained**: Recent releases within last 6 months
-- **Audited**: Available on crates.io with downloads/versions tracked
+- **Audited**: Available on npm with security advisories tracked
 
-Run `cargo audit` regularly to check for security advisories.
+Run security audits:
+
+```bash
+# Check for vulnerabilities
+bun audit
+
+# Update dependencies
+bun update
+```
+
+## Optional Dependencies (Future)
+
+```json
+{
+  "optionalDependencies": {
+    "noble": "^1.9.0"
+  }
+}
+```
+
+Future optional features:
+- **Bluetooth support**: BLE communication with VESC
+- **WebSocket**: TCP hub connectivity
+- **Progress bars**: indicatif equivalent for long operations

@@ -5,127 +5,115 @@
 ### Build Commands
 
 ```bash
-# Debug build (fast compilation, unoptimized)
-cargo build
+# Build all packages (uses Turbo for parallel builds)
+bun run build
 
-# Release build (optimized, for distribution)
-cargo build --release
+# Build specific package
+cd apps/cli && bun run build
+cd packages/vesc-protocol && bun run build
 
-# Build with specific features
-cargo build --features "usb-support"
-
-# Check compilation without building
-cargo check
+# Build release executable
+bun run build
+# Output: dist/veac (single executable)
 
 # Clean build artifacts
-cargo clean
+bun run clean
+cd apps/cli && bun run clean
 ```
 
 ### Run Commands
 
 ```bash
-# Run the CLI
-cargo run -- --help
+# Run CLI in development mode
+bun run dev
 
-# Run with arguments
-cargo run -- device list-ports
-cargo run -- --port /dev/ttyACM0 device info
+# Run CLI directly
+bun run --filter=@veac/cli dev
 
-# Run release version
-cargo run --release -- motor get-values
+# Run specific command
+bun ./apps/cli/src/index.ts device list-ports
+bun ./apps/cli/src/index.ts --port /dev/ttyACM0 device info
+
+# Run compiled version
+./dist/veac --help
+./dist/veac motor get-values
 ```
 
 ### Test Commands
 
 ```bash
 # Run all tests
-cargo test
+bun test
 
 # Run tests with output
-cargo test -- --nocapture
+bun test --verbose
 
-# Run specific test
-cargo test test_packet_encode
+# Run tests for specific package
+cd apps/cli && bun test
+cd packages/vesc-protocol && bun test
 
-# Run integration tests only
-cargo test --test integration_test
+# Run tests in specific file
+bun test apps/cli/tests/integration.test.ts
 
-# Run tests in release mode
-cargo test --release
-
-# Run with coverage (requires cargo-tarpaulin)
-cargo tarpaulin --out Html
-
-# Run benchmarks (if defined)
-cargo bench
+# Run tests with watch mode
+bun test --watch
 ```
 
 ### Linting and Formatting
 
 ```bash
-# Format code
-cargo fmt
+# Format code with Prettier
+bun run format
 
-# Check formatting without modifying
-cargo fmt -- --check
+# Check formatting
+bun run format --check
 
-# Run clippy lints
-cargo clippy
+# Type check all packages
+bun run typecheck
 
-# Run clippy with all features
-cargo clippy --all-features -- -D warnings
-
-# Fix auto-fixable clippy warnings
-cargo clippy --fix
-```
-
-### Documentation
-
-```bash
-# Generate and open documentation
-cargo doc --open
-
-# Generate docs for all features
-cargo doc --all-features
-
-# Generate docs including private items
-cargo doc --document-private-items
+# Type check specific package
+cd apps/cli && bun run typecheck
 ```
 
 ### Dependency Management
 
 ```bash
+# Install dependencies
+bun install
+
 # Update dependencies
-cargo update
+bun update
 
-# Check for outdated dependencies (requires cargo-outdated)
-cargo outdated
+# Add dependency to specific package
+cd apps/cli && bun add commander
+cd packages/vesc-protocol && bun add neverthrow
 
-# Audit for security vulnerabilities (requires cargo-audit)
-cargo audit
+# Add dev dependency
+cd apps/cli && bun add -d @types/node
 
-# Check for unused dependencies (requires cargo-udeps)
-cargo udeps
+# Remove dependency
+cd apps/cli && bun remove some-package
+
+# Audit for security vulnerabilities
+bun audit
 ```
 
-### Release and Distribution
+### Turborepo Commands
 
 ```bash
-# Build for release
-cargo build --release
+# Run command across all packages
+turbo run build
+turbo run test
+turbo run typecheck
 
-# Install locally
-cargo install --path .
+# Run with dependencies
+turbo run build --filter=@veac/cli...
 
-# Create distribution package
-cargo package --allow-dirty
+# Run without cache
+turbo run build --force
 
-# Publish to crates.io
-cargo publish
-
-# Cross-compile (requires cross)
-cross build --target x86_64-pc-windows-gnu
-cross build --target aarch64-unknown-linux-gnu
+# View pipeline
+turbo run build --dry
 ```
 
 ## CLI Usage Commands (Once Built)
@@ -134,163 +122,163 @@ cross build --target aarch64-unknown-linux-gnu
 
 ```bash
 # List available serial ports
-vesc-cli device list-ports
-vesc-cli device list-ports --format json
+veac device list-ports
+veac device list-ports --format json
 
 # Connect to VESC
-vesc-cli device connect --port /dev/ttyACM0
-vesc-cli device connect --port COM3 --baud 115200
+veac device connect --port /dev/ttyACM0
+veac device connect --port COM3 --baud 115200
 
 # Get device information
-vesc-cli device info
-vesc-cli device info --format json
+veac device info
+veac device info --format json
 
 # Ping device
-vesc-cli device ping
+veac device ping
 
 # Monitor device telemetry
-vesc-cli device monitor --fields rpm,current,voltage --duration 30
+veac device monitor --fields rpm,current,voltage --duration 30
 ```
 
 ### Motor Control
 
 ```bash
 # Get motor telemetry
-vesc-cli motor get-values
-vesc-cli motor get-values --format json
+veac motor get-values
+veac motor get-values --format json
 
 # Set motor RPM
-vesc-cli motor set-rpm 5000
-vesc-cli motor set-rpm 5000 --duration 10
+veac motor set-rpm 5000
+veac motor set-rpm 5000 --duration 10
 
 # Set motor current
-vesc-cli motor set-current 10.5
-vesc-cli motor set-current 10.5 --duration 5
+veac motor set-current 10.5
+veac motor set-current 10.5 --duration 5
 
 # Set duty cycle
-vesc-cli motor set-duty 0.5
+veac motor set-duty 0.5
 
 # Stop motor
-vesc-cli motor stop
+veac motor stop
 
 # Run motor detection
-vesc-cli motor detect --current 5.0
-vesc-cli motor detect --current 5.0 --min-rpm 100 --low-duty 0.1
+veac motor detect --current 5.0
+veac motor detect --current 5.0 --min-rpm 100 --low-duty 0.1
 
 # Stream motor data
-vesc-cli motor stream --fields rpm,current,voltage --rate 10hz --duration 60
+veac motor stream --fields rpm,current,voltage --rate 10hz --duration 60
 ```
 
 ### Configuration Management
 
 ```bash
 # Read motor configuration
-vesc-cli config get-mc
-vesc-cli config get-mc --output mcconf.xml
+veac config get-mc
+veac config get-mc --output mcconf.xml
 
 # Write motor configuration
-vesc-cli config set-mc --input mcconf.xml
-vesc-cli config set-mc --input mcconf.xml --dry-run
+veac config set-mc --input mcconf.xml
+veac config set-mc --input mcconf.xml --dry-run
 
 # Read application configuration
-vesc-cli config get-app
-vesc-cli config get-app --output appconf.xml
+veac config get-app
+veac config get-app --output appconf.xml
 
 # Write application configuration
-vesc-cli config set-app --input appconf.xml
+veac config set-app --input appconf.xml
 
 # Backup all configurations
-vesc-cli config backup --output backup.zip
+veac config backup --output backup.zip
 
 # Restore from backup
-vesc-cli config restore --input backup.zip
-vesc-cli config restore --input backup.zip --dry-run
+veac config restore --input backup.zip
+veac config restore --input backup.zip --dry-run
 ```
 
 ### Firmware Operations
 
 ```bash
 # Get firmware information
-vesc-cli firmware info
-vesc-cli firmware info --format json
+veac firmware info
+veac firmware info --format json
 
 # Update firmware
-vesc-cli firmware update --file firmware.bin
-vesc-cli firmware update --file firmware.bin --dry-run
+veac firmware update --file firmware.bin
+veac firmware update --file firmware.bin --dry-run
 
 # Backup current firmware
-vesc-cli firmware backup --output firmware-backup.bin
+veac firmware backup --output firmware-backup.bin
 ```
 
 ### CAN Bus Operations
 
 ```bash
 # Ping all CAN devices
-vesc-cli can ping
-vesc-cli can ping --timeout 2000
+veac can ping
+veac can ping --timeout 2000
 
 # List discovered CAN devices
-vesc-cli can list
-vesc-cli can list --format json
+veac can list
+veac can list --format json
 
 # Get status of specific CAN device
-vesc-cli can status 1
+veac can status 1
 
 # Forward command via CAN
-vesc-cli can forward 1 motor get-values
+veac can forward 1 motor get-values
 ```
 
 ### LispBM Operations
 
 ```bash
 # Upload Lisp script
-vesc-cli lisp upload --file script.lisp
-vesc-cli lisp upload --file script.lisp --reduce
+veac lisp upload --file script.lisp
+veac lisp upload --file script.lisp --reduce
 
 # Erase Lisp
-vesc-cli lisp erase
-vesc-cli lisp erase --force
+veac lisp erase
+veac lisp erase --force
 
 # Get Lisp status
-vesc-cli lisp status
-vesc-cli lisp status --format json
+veac lisp status
+veac lisp status --format json
 
 # Interactive Lisp REPL
-vesc-cli lisp repl
+veac lisp repl
 ```
 
 ### Schema Introspection (AI Agent Support)
 
 ```bash
 # Get full command schema
-vesc-cli schema
-vesc-cli schema --format yaml
+veac schema
+veac schema --format yaml
 
 # Get schema for specific command
-vesc-cli schema motor set-rpm
-vesc-cli schema device info --format json
+veac schema motor set-rpm
+veac schema device info --format json
 ```
 
 ### Global Options
 
 ```bash
 # Specify port and format
-vesc-cli --port /dev/ttyACM0 --format json motor get-values
+veac --port /dev/ttyACM0 --format json motor get-values
 
 # Use with CAN forwarding
-vesc-cli --port /dev/ttyACM0 --can-id 1 motor get-values
+veac --port /dev/ttyACM0 --can-id 1 motor get-values
 
 # Dry run (preview changes)
-vesc-cli --dry-run config set-mc --input mcconf.xml
+veac --dry-run config set-mc --input mcconf.xml
 
 # Skip confirmations
-vesc-cli --yes lisp erase
+veac --yes lisp erase
 
 # Verbose output
-vesc-cli --verbose device connect
+veac --verbose device connect
 
 # Custom timeout
-vesc-cli --timeout 10000 motor detect
+veac --timeout 10000 motor detect
 ```
 
 ## Development Workflow
@@ -299,22 +287,19 @@ vesc-cli --timeout 10000 motor detect
 
 ```bash
 # 1. Check code compiles
-cargo check
+cd apps/cli && bun run typecheck
 
 # 2. Run tests
-cargo test
+bun test
 
 # 3. Format code
-cargo fmt
+bun run format
 
-# 4. Run lints
-cargo clippy
+# 4. Build release
+bun run build
 
-# 5. Build release
-cargo build --release
-
-# 6. Test CLI
-./target/release/vesc-cli --help
+# 5. Test CLI
+./dist/veac --help
 ```
 
 ### Before Committing
@@ -322,10 +307,10 @@ cargo build --release
 ```bash
 # Full verification script
 #!/bin/bash
-cargo fmt -- --check
-cargo clippy -- -D warnings
-cargo test
-cargo doc
+bun run format --check
+bun run typecheck
+bun test
+bun run build
 ```
 
 ## CI/CD Integration
@@ -342,20 +327,47 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
-      - name: Install Rust
-        uses: dtolnay/rust-action@stable
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: Install dependencies
+        run: bun install
       
       - name: Check formatting
-        run: cargo fmt -- --check
+        run: bun run format --check
       
-      - name: Run clippy
-        run: cargo clippy -- -D warnings
+      - name: Type check
+        run: bun run typecheck
       
       - name: Run tests
-        run: cargo test
+        run: bun test
       
       - name: Build release
-        run: cargo build --release
+        run: bun run build
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: veac
+          path: dist/veac
 ```
+
+## Cross-Platform Builds
+
+Bun's `--compile` supports multiple targets:
+
+```bash
+# Build for current platform
+bun build --compile ./apps/cli/dist/index.js --outfile dist/veac
+
+# Build for specific target (when available)
+bun build --compile --target=bun-windows-x64 ./apps/cli/dist/index.js --outfile dist/veac.exe
+bun build --compile --target=bun-darwin-x64 ./apps/cli/dist/index.js --outfile dist/veac-darwin
+bun build --compile --target=bun-linux-x64 ./apps/cli/dist/index.js --outfile dist/veac-linux
+```
+
+Note: Bun's cross-compilation support is evolving. Check latest documentation.

@@ -6,7 +6,7 @@ The VESC CLI is structured as a layered architecture with clear separation betwe
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     CLI Layer (clap)                        │
+│                     CLI Layer (Commander)                   │
 │  - Argument parsing, subcommands, help generation            │
 │  - Output formatting (JSON/Table/YAML)                       │
 │  - Schema generation for AI agents                           │
@@ -14,7 +14,7 @@ The VESC CLI is structured as a layered architecture with clear separation betwe
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                  Command Layer                              │
+│                  Command Layer (apps/cli)                   │
 │  - Device commands (connect, info, ping)                     │
 │  - Motor commands (set-rpm, set-current, stop)               │
 │  - Config commands (get-mc, set-mc, backup)                │
@@ -23,7 +23,7 @@ The VESC CLI is structured as a layered architecture with clear separation betwe
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                VESC Protocol Layer                            │
+│                VESC Protocol Layer (packages/)              │
 │  - Packet encoding/decoding (framing, CRC)                   │
 │  - Command serialization                                     │
 │  - Response parsing                                          │
@@ -32,8 +32,8 @@ The VESC CLI is structured as a layered architecture with clear separation betwe
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                Transport Layer                                │
-│  - Serial port I/O (tokio-serial)                            │
+│                Transport Layer (serialport)                   │
+│  - Serial port I/O                                          │
 │  - USB CDC (virtual serial)                                  │
 │  - CAN bus forwarding                                        │
 └─────────────────────────────────────────────────────────────┘
@@ -71,25 +71,27 @@ Where:
 
 ### Command IDs (Key Commands)
 
-```rust
+```typescript
 // From datatypes.h - partial list of most important commands
-COMM_FW_VERSION = 0           // Get firmware version
-COMM_GET_VALUES = 4           // Get motor telemetry
-COMM_SET_DUTY = 5             // Set duty cycle (-1.0 to 1.0)
-COMM_SET_CURRENT = 6          // Set current (amperes)
-COMM_SET_CURRENT_BRAKE = 7    // Set braking current
-COMM_SET_RPM = 8              // Set RPM
-COMM_SET_POS = 9              // Set position (degrees)
-COMM_SET_HANDBRAKE = 10       // Set handbrake current
-COMM_SET_DETECT = 11          // Run motor detection
-COMM_SET_MCCONF = 13          // Set motor configuration
-COMM_GET_MCCONF = 14          // Get motor configuration
-COMM_SET_APPCONF = 16         // Set app configuration
-COMM_GET_APPCONF = 17         // Get app configuration
-COMM_TERMINAL_CMD = 20        // Execute terminal command
-COMM_REBOOT = 29              // Reboot VESC
-COMM_ALIVE = 30               // Keepalive signal
-// ... 160+ total commands
+enum CommCommand {
+  COMM_FW_VERSION = 0,           // Get firmware version
+  COMM_GET_VALUES = 4,           // Get motor telemetry
+  COMM_SET_DUTY = 5,             // Set duty cycle (-1.0 to 1.0)
+  COMM_SET_CURRENT = 6,          // Set current (amperes)
+  COMM_SET_CURRENT_BRAKE = 7,    // Set braking current
+  COMM_SET_RPM = 8,              // Set RPM
+  COMM_SET_POS = 9,              // Set position (degrees)
+  COMM_SET_HANDBRAKE = 10,       // Set handbrake current
+  COMM_SET_DETECT = 11,          // Run motor detection
+  COMM_SET_MCCONF = 13,          // Set motor configuration
+  COMM_GET_MCCONF = 14,          // Get motor configuration
+  COMM_SET_APPCONF = 16,         // Set app configuration
+  COMM_GET_APPCONF = 17,         // Get app configuration
+  COMM_TERMINAL_CMD = 20,        // Execute terminal command
+  COMM_REBOOT = 29,              // Reboot VESC
+  COMM_ALIVE = 30,               // Keepalive signal
+  // ... 160+ total commands
+}
 ```
 
 ### Data Scaling
@@ -108,7 +110,7 @@ COMM_ALIVE = 30               // Keepalive signal
 Commands follow a consistent `noun verb` structure:
 
 ```
-vesc-cli [global-options] <noun> <verb> [options]
+veac [global-options] <noun> <verb> [options]
 ```
 
 #### Nouns (Resources)
@@ -159,70 +161,71 @@ vesc-cli [global-options] <noun> <verb> [options]
 
 ## Core Data Structures
 
+### TypeScript Types Overview
+
+The project uses TypeScript interfaces to represent VESC protocol data structures:
+
 ### Connection
 
-```rust
-pub struct VescConnection {
-    port_name: String,
-    baud_rate: u32,
-    stream: Option<SerialStream>,
-    read_buffer: Vec<u8>,
+```typescript
+interface VescConnection {
+  portName: string;
+  baudRate: number;
+  port: SerialPort | null;
+  readBuffer: Uint8Array;
 }
 ```
 
 ### Packet
 
-```rust
-pub struct Packet {
-    pub payload: Vec<u8>,  // Command ID + data
+```typescript
+interface Packet {
+  payload: Uint8Array;  // Command ID + data
 }
 
-impl Packet {
-    pub fn encode(&self) -> Vec<u8> { /* framing + CRC */ }
-    pub fn decode(data: &[u8]) -> Result<Option<(Self, usize)>, ProtocolError> { }
-}
+// Packet encoding/decoding functions
+function encodePacket(payload: Uint8Array): Uint8Array;
+function decodePacket(data: Uint8Array): { packet: Packet; bytesRead: number } | null;
 ```
 
 ### Command Enum
 
-```rust
-pub enum Command {
-    GetFwVersion,
-    GetValues,
-    SetDuty(f64),
-    SetCurrent(f64),
-    SetCurrentBrake(f64),
-    SetRpm(i32),
-    SetPos(f64),
-    Stop,
-    GetMcConf,
-    SetMcConf(Vec<u8>),
-    // ... 160+ variants
-}
+```typescript
+type Command =
+  | { type: 'GetFwVersion' }
+  | { type: 'GetValues' }
+  | { type: 'SetDuty'; duty: number }
+  | { type: 'SetCurrent'; current: number }
+  | { type: 'SetCurrentBrake'; current: number }
+  | { type: 'SetRpm'; rpm: number }
+  | { type: 'SetPos'; pos: number }
+  | { type: 'Stop' }
+  | { type: 'GetMcConf' }
+  | { type: 'SetMcConf'; config: Uint8Array }
+  // ... 160+ variants
 ```
 
 ### Response Types
 
-```rust
-pub enum Response {
-    FwVersion { major: u8, minor: u8, name: String, ... },
-    Values(McValues),
-    McConf(Vec<u8>),
-    AppConf(Vec<u8>),
-    Ack(String),
-    Error(String),
-}
+```typescript
+type Response =
+  | { type: 'FwVersion'; major: number; minor: number; name: string }
+  | { type: 'Values'; values: McValues }
+  | { type: 'McConf'; config: Uint8Array }
+  | { type: 'AppConf'; config: Uint8Array }
+  | { type: 'Ack'; message: string }
+  | { type: 'Error'; message: string };
 
-pub struct McValues {
-    pub v_in: f64,
-    pub temp_mos: f64,
-    pub temp_motor: f64,
-    pub current_motor: f64,
-    pub current_in: f64,
-    pub rpm: f64,
-    pub duty_now: f64,
-    pub fault_code: u8,
-    // ... 20+ fields
+interface McValues {
+  vIn: number;
+  tempMos: number;
+  tempMotor: number;
+  currentMotor: number;
+  currentIn: number;
+  rpm: number;
+  dutyNow: number;
+  faultCode: number;
+  // ... 20+ fields
 }
 ```
 
@@ -231,15 +234,15 @@ pub struct McValues {
 The CLI provides machine-readable schema for AI agent capability discovery:
 
 ```bash
-vesc-cli schema                    # Full command schema
-vesc-cli schema motor set-rpm      # Schema for specific command
+veac schema                    # Full command schema
+veac schema motor set-rpm      # Schema for specific command
 ```
 
 Schema output format:
 
 ```json
 {
-  "name": "vesc-cli",
+  "name": "veac",
   "version": "1.0.0",
   "commands": [
     {
@@ -250,13 +253,13 @@ Schema output format:
         {"name": "rpm", "type": "integer", "required": true, "description": "Target RPM"},
         {"name": "duration", "type": "integer", "required": false, "default": null}
       ],
-      "output_fields": [
+      "outputFields": [
         {"name": "success", "type": "boolean"},
-        {"name": "actual_rpm", "type": "integer"}
+        {"name": "actualRpm", "type": "integer"}
       ]
     }
   ],
-  "error_kinds": [
+  "errorKinds": [
     {"kind": "connection", "retryable": true, "description": "Connection failed"},
     {"kind": "timeout", "retryable": true, "description": "Command timed out"}
   ]
@@ -276,6 +279,26 @@ Schema output format:
 | 6 | Not Found | Resource not found |
 | 7 | Permission Denied | Access denied |
 | 10 | Dry Run Success | --dry-run completed |
+
+Exit codes are implemented using Node.js `process.exit()`:
+
+```typescript
+// Exit code handling
+export const ExitCode = {
+  Success: 0,
+  GeneralError: 1,
+  InvalidArguments: 2,
+  ConnectionFailed: 3,
+  Timeout: 4,
+  ProtocolError: 5,
+  NotFound: 6,
+  PermissionDenied: 7,
+  DryRunSuccess: 10,
+} as const;
+
+// Usage
+process.exit(ExitCode.Success);
+```
 
 ## AI-Agent Design Principles
 

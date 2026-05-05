@@ -1,178 +1,298 @@
 # File Structure
 
-## Planned Directory Tree
+## Turborepo Workspace Layout
 
 ```
 veac/
-├── Cargo.toml                      # Rust project manifest
-├── Cargo.lock                      # Dependency lock file
-├── README.md                       # User-facing project README
-├── LICENSE                         # GPL v3 license
-├── .gitignore                      # Git ignore patterns
+├── apps/                           # Applications
+│   └── cli/                        # Main CLI application
+│       ├── package.json            # CLI package manifest
+│       ├── tsconfig.json           # TypeScript config
+│       ├── src/
+│       │   ├── index.ts            # Entry point
+│       │   ├── cli.ts              # Commander CLI setup
+│       │   ├── commands/           # Command implementations
+│       │   │   ├── index.ts        # Command exports
+│       │   │   ├── device.ts       # Device commands
+│       │   │   ├── motor.ts        # Motor commands
+│       │   │   ├── config.ts       # Configuration commands
+│       │   │   ├── firmware.ts     # Firmware commands
+│       │   │   ├── can.ts          # CAN bus commands
+│       │   │   ├── lisp.ts         # LispBM commands
+│       │   │   ├── bms.ts          # BMS commands
+│       │   │   ├── log.ts          # Data logging commands
+│       │   │   └── terminal.ts     # Terminal commands
+│       │   ├── output/             # Output formatting
+│       │   │   ├── index.ts
+│       │   │   ├── json.ts
+│       │   │   ├── table.ts
+│       │   │   └── yaml.ts
+│       │   └── schema.ts           # Schema introspection
+│       └── tests/
+│           └── integration.test.ts # Integration tests
 │
-├── src/                            # Source code
-│   ├── main.rs                     # CLI entry point
-│   ├── lib.rs                      # Library exports (optional)
-│   ├── error.rs                    # Error types and exit codes
+├── packages/                       # Shared packages
+│   ├── vesc-protocol/              # VESC communication protocol
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── src/
+│   │       ├── index.ts            # Public exports
+│   │       ├── packet.ts           # Packet encoding/decoding
+│   │       ├── crc.ts              # CRC16 calculation
+│   │       ├── connection.ts       # Serial connection management
+│   │       ├── commands.ts         # Command serialization
+│   │       └── responses.ts        # Response parsing
 │   │
-│   ├── cli/                        # CLI layer
-│   │   ├── mod.rs                  # CLI module exports
-│   │   ├── args.rs                 # Clap argument definitions
-│   │   ├── commands.rs             # Command dispatch logic
-│   │   ├── output.rs               # Output formatting (JSON/Table/YAML)
-│   │   └── schema.rs               # Schema introspection generation
+│   ├── vesc-types/                 # Shared TypeScript types
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── src/
+│   │       ├── index.ts            # Public exports
+│   │       ├── datatypes.ts        # VESC data structures
+│   │       ├── config.ts           # Configuration types
+│   │       └── commands.ts         # Command type definitions
 │   │
-│   ├── vesc/                       # VESC protocol layer
-│   │   ├── mod.rs                  # VESC module exports
-│   │   ├── protocol.rs             # Packet framing, CRC, encoding/decoding
-│   │   ├── commands.rs             # VESC command definitions & serialization
-│   │   ├── connection.rs           # Serial connection management
-│   │   ├── datatypes.rs            # Rust equivalents of datatypes.h
-│   │   ├── responses.rs            # Response parsing
-│   │   └── crc.rs                  # CRC16 implementation (if needed)
-│   │
-│   ├── commands/                   # CLI command implementations
-│   │   ├── mod.rs                  # Command module exports
-│   │   ├── device.rs               # Device commands (connect, info, ping)
-│   │   ├── motor.rs                # Motor commands (set-rpm, set-current)
-│   │   ├── config.rs               # Configuration commands
-│   │   ├── firmware.rs             # Firmware update commands
-│   │   ├── can.rs                  # CAN bus commands
-│   │   ├── lisp.rs                 # LispBM script commands
-│   │   ├── bms.rs                  # BMS commands
-│   │   ├── log.rs                  # Data logging commands
-│   │   └── terminal.rs             # Terminal/debug commands
-│   │
-│   └── utils/                      # Utility modules
-│       ├── mod.rs                  # Utils module exports
-│       ├── xml.rs                  # XML serialization for configs
-│       └── format.rs               # Output formatting utilities
+│   └── config-utils/               # Configuration file handling
+│       ├── package.json
+│       ├── tsconfig.json
+│       └── src/
+│           ├── index.ts
+│           ├── xml.ts              # XML serialization
+│           ├── backup.ts           # Backup/restore utilities
+│           └── validation.ts       # Config validation
 │
-├── tests/                          # Integration tests
-│   ├── integration_test.rs         # Main integration test suite
-│   ├── protocol_test.rs            # Protocol encoding/decoding tests
-│   └── mock_vesc.rs                # Mock VESC for testing
-│
-├── examples/                       # Usage examples
-│   ├── basic_usage.rs              # Basic CLI usage examples
-│   ├── motor_control.rs            # Motor control examples
-│   └── config_backup.rs            # Configuration management examples
-│
-├── docs/                           # Documentation (for end users)
-│   ├── AGENTS.md                   # AI agent usage guide
-│   ├── CONTEXT.md                  # Context for AI agents
-│   ├── PROTOCOL.md                 # VESC protocol documentation
-│   └── USAGE.md                    # Human user manual
-│
-└── orchestrator-agent-docs/        # Agent orchestration docs (this dir)
-    ├── README.md                   # Project overview
-    ├── architecture.md             # System architecture
-    ├── file-structure.md           # This file
-    ├── conventions.md              # Coding standards
-    ├── commands.md                 # Build/test commands
-    ├── dependencies.md             # Crate dependencies
-    ├── state.md                    # Implementation status
-    └── modules/                    # Module-specific docs (future)
+├── turbo.json                      # Turborepo pipeline config
+├── package.json                    # Root workspace manifest
+├── bun.lockb                       # Bun lockfile
+├── tsconfig.json                   # Root TypeScript config
+└── README.md                       # Project documentation
 ```
 
-## Module Responsibilities
+## Root Configuration
 
-### `src/cli/`
+### package.json (Root)
 
-Handles all user-facing CLI concerns:
-- **args.rs**: Define CLI structure using clap derive macros
-- **commands.rs**: Dispatch parsed arguments to appropriate handlers
-- **output.rs**: Format output based on `--format` flag
-- **schema.rs**: Generate machine-readable command schema
-
-### `src/vesc/`
-
-Implements the VESC communication protocol:
-- **protocol.rs**: Low-level packet encoding/decoding, CRC calculation
-- **commands.rs**: High-level command enum and serialization
-- **connection.rs**: Serial port management with tokio-serial
-- **datatypes.rs**: Rust structs matching VESC datatypes.h
-- **responses.rs**: Parse binary responses into typed structures
-
-### `src/commands/`
-
-Implements each command category:
-- **device.rs**: Port discovery, connection, device info
-- **motor.rs**: Motor control (RPM, current, duty, detection)
-- **config.rs**: MCConf/AppConf read/write, backup/restore
-- **firmware.rs**: Firmware updates and version info
-- **can.rs**: CAN bus operations and forwarding
-- **lisp.rs**: LispBM script upload/erase/status
-- **bms.rs**: Battery management system operations
-- **log.rs**: Data logging and real-time streaming
-- **terminal.rs**: Terminal command execution
-
-### `src/utils/`
-
-Shared utilities:
-- **xml.rs**: XML serialization for VESC configuration files
-- **format.rs**: Common formatting utilities
-
-## Test Structure
-
-```
-tests/
-├── integration_test.rs     # End-to-end CLI tests using assert_cmd
-├── protocol_test.rs        # Unit tests for packet encoding/decoding
-└── mock_vesc.rs            # Mock VESC device for testing without hardware
+```json
+{
+  "name": "veac",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write .",
+    "clean": "turbo run clean && rm -rf dist node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "prettier": "^3.1.0",
+    "turbo": "^1.11.0",
+    "typescript": "^5.3.0"
+  }
+}
 ```
 
-## Configuration Files
+### turbo.json
 
-### Cargo.toml
-
-```toml
-[package]
-name = "vesc-cli"
-version = "0.1.0"
-edition = "2021"
-authors = ["..."]
-license = "GPL-3.0"
-description = "CLI for VESC motor controllers"
-repository = "..."
-
-[[bin]]
-name = "vesc-cli"
-path = "src/main.rs"
-
-[dependencies]
-# See dependencies.md for full list
-
-[dev-dependencies]
-assert_cmd = "2.0"
-predicates = "3.1"
+```json
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env.*local"],
+  "globalEnv": ["NODE_ENV"],
+  "pipeline": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "test": {
+      "dependsOn": ["build"]
+    },
+    "lint": {},
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}
 ```
 
-### .gitignore
+## Package Responsibilities
 
+### `apps/cli/`
+
+Main CLI application implementing the `veac` command:
+
+- **index.ts**: Entry point, process setup
+- **cli.ts**: Commander CLI setup with subcommands
+- **commands/**: Command category implementations
+  - Each file implements one noun category (device, motor, config, etc.)
+  - Uses packages from `packages/` for VESC communication
+- **output/**: Output formatting (JSON/Table/YAML)
+- **schema.ts**: Machine-readable schema generation
+
+### `packages/vesc-protocol/`
+
+Low-level VESC protocol implementation:
+
+- **packet.ts**: Packet framing, encoding, decoding
+- **crc.ts**: IBM SDLC CRC16 calculation
+- **connection.ts**: Serial port management with serialport
+- **commands.ts**: Command serialization to binary
+- **responses.ts**: Binary response parsing into typed structures
+
+### `packages/vesc-types/`
+
+Shared TypeScript type definitions:
+
+- **datatypes.ts**: VESC data structures (McValues, etc.)
+- **config.ts**: Configuration file type definitions
+- **commands.ts**: Command and response type definitions
+- Used by both CLI and protocol packages
+
+### `packages/config-utils/`
+
+Configuration file handling utilities:
+
+- **xml.ts**: XML serialization for VESC configuration files
+- **backup.ts**: Backup/restore operations
+- **validation.ts**: Configuration validation
+
+## Package Manifest Examples
+
+### Package (e.g., packages/vesc-protocol/package.json)
+
+```json
+{
+  "name": "@veac/vesc-protocol",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "serialport": "^12.0.0",
+    "@veac/vesc-types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
 ```
-/target
-Cargo.lock
-*.log
-*.xml
-*.bin
-*.zip
-.DS_Store
+
+### CLI Package (apps/cli/package.json)
+
+```json
+{
+  "name": "@veac/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "veac": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc && bun build --compile ./dist/index.js --outfile ../../dist/veac",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "@veac/vesc-protocol": "workspace:*",
+    "@veac/vesc-types": "workspace:*",
+    "@veac/config-utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}
 ```
 
 ## Build Output
 
-After `cargo build --release`:
+After `bun run build`:
 
 ```
-target/
-├── debug/                  # Debug build artifacts
-│   ├── vesc-cli.exe        # Windows debug binary
-│   └── ...
-└── release/                # Release build artifacts
-    ├── vesc-cli.exe        # Windows release binary
-    ├── vesc-cli            # Linux/macOS release binary
-    └── ...
+veac/
+├── apps/cli/dist/           # Compiled TypeScript
+├── packages/vesc-protocol/dist/
+├── packages/vesc-types/dist/
+├── packages/config-utils/dist/
+└── dist/
+    └── veac                 # Compiled executable (Bun --compile output)
+```
+
+## Inter-Package Dependencies
+
+```
+┌─────────────┐
+│ apps/cli    │
+└──────┬──────┘
+       │
+       ├─── packages/vesc-protocol
+       │
+       ├─── packages/vesc-types
+       │
+       └─── packages/config-utils
+                │
+                └─── packages/vesc-types
+
+packages/vesc-protocol depends on:
+  - packages/vesc-types
+
+packages/config-utils depends on:
+  - packages/vesc-types
+```
+
+## Git Ignore
+
+```
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+*.exe
+*.bin
+
+# Bun
+bun.lockb
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VESC files
+*.xml
+*.bin
+*.zip
 ```
 
 ## Future Extensions
@@ -180,15 +300,19 @@ target/
 Potential future additions:
 
 ```
+├── apps/
+│   └── cli/
+│   └── web-ui/             # Future: Web-based UI
+├── packages/
+│   └── vesc-bluetooth/     # Future: BLE support
 ├── completions/            # Shell completion scripts
-│   ├── vesc-cli.bash
-│   ├── vesc-cli.zsh
-│   └── vesc-cli.fish
+│   ├── veac.bash
+│   ├── veac.zsh
+│   └── veac.fish
 ├── man/                    # Man pages
-│   └── vesc-cli.1
-├── packaging/              # Distribution packaging
-│   ├── debian/
-│   ├── homebrew/
-│   └── windows/
-└── benchmarks/             # Performance benchmarks
+│   └── veac.1
+└── packaging/              # Distribution packaging
+    ├── debian/
+    ├── homebrew/
+    └── windows/
 ```
