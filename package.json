@@ -1,0 +1,70 @@
+{
+  "name": "veac",
+  "version": "0.1.0",
+  "description": "AI-controllable CLI for VESC motor controllers. One-command install: npx veac-install or bunx veac-install",
+  "private": false,
+  "type": "module",
+  "bin": {
+    "veac-install": "./install.mjs"
+  },
+  "files": [
+    "install.mjs",
+    "install.sh",
+    "install.ps1",
+    "install.bat",
+    "README.md",
+    "LICENSE"
+  ],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "check-types": "turbo run check-types",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "cli": "turbo run dev --filter=@veac/cli",
+    "veac": "bun run apps/cli/src/index.ts",
+    "clean": "turbo run clean && rm -rf node_modules bun.lockb",
+    "version": "changeset version",
+    "release": "turbo run build && changeset publish",
+    "install:cli": "node install.mjs",
+    "install:cli:local": "bun run install.mjs"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.1",
+    "prettier": "^3.2.5",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.5"
+  },
+  "packageManager": "bun@1.1.0",
+  "engines": {
+    "node": ">=16.0.0",
+    "bun": ">=1.1.0"
+  },
+  "author": "VESC CLI Contributors",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Can-0f-Tuna/veac"
+  },
+  "bugs": {
+    "url": "https://github.com/Can-0f-Tuna/veac/issues"
+  },
+  "homepage": "https://github.com/Can-0f-Tuna/veac#readme",
+  "keywords": [
+    "vesc",
+    "motor",
+    "cli",
+    "automation",
+    "robotics",
+    "installer",
+    "turbo",
+    "monorepo",
+    "veac-install"
+  ]
+}
