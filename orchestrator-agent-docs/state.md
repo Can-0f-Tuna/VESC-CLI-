@@ -74,6 +74,7 @@ The project is migrating from **Rust** to **Bun + Turborepo** while preserving a
 - ✅ dependencies.md converted to npm packages
 - ✅ commands.md updated for bun commands
 - ✅ conventions.md converted to TypeScript standards
+- ✅ install.mjs cleaned up (emojis removed, skill fallback added)
 - 🔄 state.md (this file) being updated
 
 ## Remaining Work

@@ -73,23 +73,23 @@ function header(title) {
 
 /** Print a success message */
 function success(message) {
-  print('green', `✅ ${message}`);
+  print('green', `[OK] ${message}`);
 }
 
 /** Print a warning message */
 function warn(message) {
-  print('yellow', `⚠️  ${message}`);
+  print('yellow', `[WARN] ${message}`);
 }
 
 /** Print an error message and exit */
 function error(message, exitCode = 1) {
-  print('red', `❌ ${message}`);
+  print('red', `[ERROR] ${message}`);
   process.exit(exitCode);
 }
 
 /** Print an info message */
 function info(message) {
-  print('cyan', `ℹ️  ${message}`);
+  print('cyan', `[INFO] ${message}`);
 }
 
 /** Execute a shell command with optional timeout */
@@ -246,7 +246,7 @@ function getPlatformInfo() {
 
 /** Step 1: Check and install dependencies (Git, Bun/Node) */
 async function checkDependencies(runtime, verbose) {
-  header('🔍 Checking Dependencies');
+  header('[1/8] Checking Dependencies');
 
   // Check Git
   if (!commandExists('git')) {
@@ -297,7 +297,7 @@ function createTempDir() {
 
 /** Step 3: Clone the repository */
 async function cloneRepository(tempDir, verbose) {
-  header('📥 Cloning Repository');
+  header('[2/8] Cloning Repository');
   
   try {
     await exec('git', ['clone', '--depth', '1', REPO_URL, '.'], {
@@ -313,7 +313,7 @@ async function cloneRepository(tempDir, verbose) {
 
 /** Step 4: Install dependencies */
 async function installDependencies(tempDir, runtime, verbose) {
-  header('📦 Installing Dependencies');
+  header('[3/8] Installing Dependencies');
   
   try {
     if (runtime.type === 'bun') {
@@ -329,7 +329,7 @@ async function installDependencies(tempDir, runtime, verbose) {
 
 /** Step 5: Build the project */
 async function buildProject(tempDir, runtime, verbose) {
-  header('🔨 Building Project');
+  header('[4/8] Building Project');
   
   try {
     if (runtime.type === 'bun') {
@@ -345,7 +345,7 @@ async function buildProject(tempDir, runtime, verbose) {
 
 /** Step 6: Install CLI globally using link */
 async function installCLI(tempDir, managers, verbose) {
-  header('📦 Installing CLI Globally');
+  header('[5/8] Installing CLI Globally');
 
   // Create install directory
   mkdirSync(INSTALL_DIR, { recursive: true });
@@ -448,9 +448,55 @@ fi
   }
 }
 
+/** Check if the 'skills' CLI tool exists */
+async function skillsCliExists(installer) {
+  try {
+    // Try to run 'skills --version' or similar to check if it exists
+    await exec(installer, ['skills', '--version'], { silent: true, timeout: 5000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Get the skill installation directory */
+function getSkillDir() {
+  return join(homedir(), '.agents', 'skills', SKILL_NAME);
+}
+
+/** Manually install skill by copying from temp directory */
+function installSkillManually(tempDir) {
+  const skillSourceDir = join(tempDir, SKILL_NAME);
+  const skillTargetDir = getSkillDir();
+
+  // Check if skill exists in temp directory
+  if (!existsSync(skillSourceDir)) {
+    throw new Error(`Skill directory not found at ${skillSourceDir}`);
+  }
+
+  // Create parent directories if needed
+  mkdirSync(join(homedir(), '.agents', 'skills'), { recursive: true });
+
+  // Remove existing skill installation if present
+  if (existsSync(skillTargetDir)) {
+    info('Removing existing skill installation...');
+    rmSync(skillTargetDir, { recursive: true, force: true });
+  }
+
+  // Copy skill directory
+  cpSync(skillSourceDir, skillTargetDir, { recursive: true });
+
+  // Verify installation
+  if (!existsSync(join(skillTargetDir, 'SKILL.md'))) {
+    throw new Error('Skill installation verification failed - SKILL.md not found');
+  }
+
+  return skillTargetDir;
+}
+
 /** Step 7: Install the skill */
-async function installSkill(managers, verbose) {
-  header('🎓 Installing VESC CLI Skill');
+async function installSkill(managers, verbose, tempDir = null) {
+  header('[6/8] Installing VESC CLI Skill');
 
   // Determine which installer to use
   const installer = managers.find(m => m.type === 'bun') 
@@ -459,27 +505,69 @@ async function installSkill(managers, verbose) {
       ? 'npx' 
       : null;
 
-  if (!installer) {
-    warn('No suitable installer found (bunx or npx required)');
-    print('cyan', 'Manual skill installation:');
-    print('reset', `  bunx skills add ${REPO_URL} --skill ${SKILL_NAME}`);
-    return false;
+  // First, try the skills CLI if available
+  if (installer) {
+    const hasSkillsCli = await skillsCliExists(installer);
+    
+    if (hasSkillsCli) {
+      try {
+        info(`Installing skill using ${installer} skills...`);
+        await exec(installer, ['skills', 'add', REPO_URL, '--skill', SKILL_NAME], {
+          timeout: 60000,
+          verbose
+        });
+        success('Skill installed successfully via skills CLI');
+        return true;
+      } catch (err) {
+        warn(`Skills CLI installation failed: ${err.message}`);
+        info('Falling back to manual installation...');
+      }
+    } else {
+      info(`Skills CLI not available via ${installer}, using manual installation...`);
+    }
+  } else {
+    info('No bunx/npx available, using manual installation...');
   }
 
-  try {
-    info(`Installing skill using ${installer}...`);
-    await exec(installer, ['skills', 'add', REPO_URL, '--skill', SKILL_NAME], {
-      timeout: 60000,
-      verbose
-    });
-    success('Skill installed successfully');
-    return true;
-  } catch (err) {
-    warn(`Automatic skill installation may have failed: ${err.message}`);
-    print('cyan', 'Manual installation:');
-    print('reset', `  ${installer} skills add ${REPO_URL} --skill ${SKILL_NAME}`);
-    return false;
+  // Manual fallback: Copy skill files directly
+  if (tempDir && existsSync(tempDir)) {
+    try {
+      info('Installing skill manually...');
+      const skillDir = installSkillManually(tempDir);
+      success(`Skill installed to ${skillDir}`);
+      
+      print('cyan', '\nSkill installation complete!');
+      print('dim', `The skill is now available at: ${skillDir}`);
+      print('dim', 'Your agent should automatically detect this skill.');
+      
+      return true;
+    } catch (err) {
+      warn(`Manual installation failed: ${err.message}`);
+    }
   }
+
+  // If we get here, both methods failed - provide clear instructions
+  warn('Automatic skill installation failed');
+  
+  print('cyan', '\nManual Skill Installation Instructions:');
+  print('reset', '');
+  print('reset', 'Option 1 - Using skills CLI (if available):');
+  print('reset', `  ${installer || 'bunx'} skills add ${REPO_URL} --skill ${SKILL_NAME}`);
+  print('reset', '');
+  print('reset', 'Option 2 - Manual copy:');
+  print('reset', '  1. Clone the repository:');
+  print('reset', `     git clone --depth 1 ${REPO_URL}`);
+  print('reset', '  2. Copy the skill folder:');
+  const targetPath = getSkillDir();
+  if (platform() === 'win32') {
+    print('reset', `     xcopy /E /I ${REPO_NAME}\\${SKILL_NAME} ${targetPath.replace(/\//g, '\\')}`);
+  } else {
+    print('reset', `     cp -r ${REPO_NAME}/${SKILL_NAME} ${targetPath}`);
+  }
+  print('reset', '');
+  print('cyan', 'The skill provides VESC controller knowledge and guided setup workflows.');
+  
+  return false;
 }
 
 /** Step 8: Setup PATH if needed */
@@ -488,7 +576,7 @@ function setupPath() {
   const pathSeparator = platform() === 'win32' ? ';' : ':';
   
   if (!currentPath.split(pathSeparator).includes(INSTALL_DIR)) {
-    header('⚠️  PATH Configuration Required');
+    header('[WARNING] PATH Configuration Required');
     
     const shell = process.env.SHELL;
     let configFile;
@@ -519,7 +607,7 @@ function setupPath() {
 
 /** Step 9: Verify installation */
 async function verifyInstallation() {
-  header('🧪 Verifying Installation');
+  header('[7/8] Verifying Installation');
   
   const wrapperPath = join(INSTALL_DIR, platform() === 'win32' ? 'veac.cmd' : 'veac');
   
@@ -546,7 +634,7 @@ async function verifyInstallation() {
 async function installDev(runtime, verbose) {
   const devDir = resolve(process.argv.find(arg => !arg.startsWith('--')) || join(homedir(), 'veac-dev'));
   
-  header('🛠️  Development Mode');
+  header('[Development Mode]');
   
   if (existsSync(devDir)) {
     warn(`Directory ${devDir} already exists`);
@@ -589,7 +677,7 @@ async function installDev(runtime, verbose) {
     }
     success('Project built');
 
-    print('green', `\n✅ Development environment ready at ${devDir}`);
+    print('green', `\n[SUCCESS] Development environment ready at ${devDir}`);
     print('cyan', 'Next steps:');
     print('reset', `  cd ${devDir}`);
     print('reset', '  bun run dev');
@@ -663,7 +751,7 @@ ${colors.bold}Repository:${colors.reset} ${REPO_URL}
 
   // Print welcome message
   console.log(`
-${colors.cyan}🚀 VESC CLI Installer${colors.reset}
+${colors.cyan}[VESC CLI Installer]${colors.reset}
 ${colors.gray}===================${colors.reset}
   `);
 
@@ -683,7 +771,11 @@ ${colors.gray}===================${colors.reset}
 
     // Skill-only mode
     if (skillOnly) {
-      await installSkill(managers, verbose);
+      // For skill-only mode, we need to clone first to get the skill files
+      tempDir = createTempDir();
+      await cloneRepository(tempDir, verbose);
+      await installSkill(managers, verbose, tempDir);
+      cleanup(tempDir);
       return;
     }
 
@@ -707,7 +799,7 @@ ${colors.gray}===================${colors.reset}
     
     // Step 6: Install skill (unless --cli-only)
     if (!cliOnly) {
-      await installSkill(managers, verbose);
+      await installSkill(managers, verbose, tempDir);
     }
     
     // Step 7: Setup PATH
@@ -718,7 +810,7 @@ ${colors.gray}===================${colors.reset}
 
     // Success message
     console.log(`
-${colors.green}🎉 Installation Complete!${colors.reset}
+${colors.green}[SUCCESS] Installation Complete!${colors.reset}
 ${colors.gray}=======================${colors.reset}
     `);
 
@@ -744,7 +836,7 @@ ${colors.gray}=======================${colors.reset}
     }
 
   } catch (err) {
-    print('red', `\n❌ Installation failed: ${err.message}`);
+    print('red', `\n[FAILED] Installation failed: ${err.message}`);
     if (verbose) {
       console.error(err.stack);
     }
