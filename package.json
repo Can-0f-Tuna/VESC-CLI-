@@ -50,12 +50,12 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Can-0f-Tuna/veac"
+    "url": "https://github.com/Can-0f-Tuna/VESC-CLI-"
   },
   "bugs": {
-    "url": "https://github.com/Can-0f-Tuna/veac/issues"
+    "url": "https://github.com/Can-0f-Tuna/VESC-CLI-/issues"
   },
-  "homepage": "https://github.com/Can-0f-Tuna/veac#readme",
+  "homepage": "https://github.com/Can-0f-Tuna/VESC-CLI-#readme",
   "keywords": [
     "vesc",
     "motor",

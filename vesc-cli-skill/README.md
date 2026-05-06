@@ -11,7 +11,7 @@ Provides comprehensive support for VESC motor control, CAN bus operations, LispB
 Install this skill with a single command:
 
 ```bash
-bunx skills add https://github.com/Can-0f-Tuna/veac.git --skill vesc-cli
+bunx skills add https://github.com/Can-0f-Tuna/VESC-CLI-.git --skill vesc-cli
 ```
 
 **Requirements:**
@@ -320,5 +320,5 @@ MIT License - See project repository for details.
 **Quick Install Reminder:**
 
 ```bash
-bunx skills add https://github.com/Can-0f-Tuna/veac.git --skill vesc-cli
+bunx skills add https://github.com/Can-0f-Tuna/VESC-CLI-.git --skill vesc-cli
 ```

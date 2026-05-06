@@ -7,19 +7,19 @@ AI-controllable CLI for VESC motor controllers. Built with Bun + TypeScript.
 Run this command in your terminal:
 
 ```bash
-curl -fsSL -o install.mjs https://raw.githubusercontent.com/Can-0f-Tuna/veac/main/install.mjs && node install.mjs && rm install.mjs
+curl -fsSL -o install.mjs https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/main/install.mjs && node install.mjs && rm install.mjs
 ```
 
 Or with Bun (faster):
 
 ```bash
-curl -fsSL -o install.mjs https://raw.githubusercontent.com/Can-0f-Tuna/veac/main/install.mjs && bun install.mjs && rm install.mjs
+curl -fsSL -o install.mjs https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/main/install.mjs && bun install.mjs && rm install.mjs
 ```
 
 Or on Windows (PowerShell):
 
 ```powershell
-irm https://raw.githubusercontent.com/Can-0f-Tuna/veac/main/install.mjs -o install.mjs; node install.mjs; rm install.mjs
+irm https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/main/install.mjs -o install.mjs; node install.mjs; rm install.mjs
 ```
 
 This downloads the installer, installs both the `veac` CLI and the VESC agent skill, then cleans up.
@@ -58,7 +58,7 @@ veac motor stop
 ## Development
 
 ```bash
-git clone https://github.com/Can-0f-Tuna/veac.git
+git clone https://github.com/Can-0f-Tuna/VESC-CLI-.git
 cd veac
 bun install
 bun run build

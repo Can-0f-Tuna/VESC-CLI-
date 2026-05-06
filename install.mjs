@@ -5,8 +5,8 @@
  * One-command installer that installs both the CLI tool and the agent skill.
  * 
  * Usage:
- *   curl -fsSL https://raw.githubusercontent.com/Can-0f-Tuna/veac/main/install.mjs | bun run
- *   curl -fsSL https://raw.githubusercontent.com/Can-0f-Tuna/veac/main/install.mjs | node
+ *   curl -fsSL https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/main/install.mjs | bun run
+ *   curl -fsSL https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/main/install.mjs | node
  *   npx veac-install
  *   bunx veac-install
  *   node install.mjs
@@ -31,7 +31,7 @@ import { join, resolve } from 'path';
 // =============================================================================
 
 const REPO_OWNER = 'Can-0f-Tuna';
-const REPO_NAME = 'veac';
+const REPO_NAME = 'VESC-CLI-';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}.git`;
 const INSTALL_DIR = join(homedir(), '.local', 'bin');
 const PERMANENT_DIR = join(homedir(), '.veac');
