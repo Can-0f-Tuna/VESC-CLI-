@@ -22,7 +22,7 @@
  */
 
 import { execSync, spawn } from 'child_process';
-import { mkdtempSync, rmSync, mkdirSync, cpSync, writeFileSync, chmodSync, existsSync, readFileSync } from 'fs';
+import { mkdtempSync, rmSync, mkdirSync, cpSync, writeFileSync, chmodSync, existsSync, readFileSync, renameSync } from 'fs';
 import { tmpdir, homedir, platform } from 'os';
 import { join, resolve } from 'path';
 
@@ -351,18 +351,51 @@ async function installCLI(tempDir, managers, verbose) {
   mkdirSync(INSTALL_DIR, { recursive: true });
 
   // Check if already installed
+  const backupDir = PERMANENT_DIR + '.backup.' + Date.now();
   if (existsSync(PERMANENT_DIR)) {
     warn('Existing installation found at ' + PERMANENT_DIR);
-    info('Removing old installation...');
-    rmSync(PERMANENT_DIR, { recursive: true, force: true });
+    info('Moving old installation to backup location...');
+    try {
+      // Rename is atomic and works even when files are locked
+      renameSync(PERMANENT_DIR, backupDir);
+      info('Old installation moved to ' + backupDir);
+    } catch (err) {
+      warn('Could not move old installation: ' + err.message);
+      warn('Attempting direct removal...');
+      try {
+        rmSync(PERMANENT_DIR, { recursive: true, force: true });
+      } catch (rmErr) {
+        warn('Could not remove old installation: ' + rmErr.message);
+      }
+    }
   }
 
   // Copy to permanent location
   try {
     cpSync(tempDir, PERMANENT_DIR, { recursive: true });
     success(`CLI installed to ${PERMANENT_DIR}`);
+    
+    // Clean up backup directory in background (don't fail if it doesn't work)
+    if (existsSync(backupDir)) {
+      info('Cleaning up backup...');
+      try {
+        rmSync(backupDir, { recursive: true, force: true });
+      } catch (cleanupErr) {
+        // Silent fail - backup will be cleaned up on next install
+      }
+    }
   } catch (err) {
     error(`Failed to copy installation: ${err.message}`);
+    // Try to restore backup if copy failed
+    if (existsSync(backupDir) && !existsSync(PERMANENT_DIR)) {
+      warn('Attempting to restore previous installation...');
+      try {
+        renameSync(backupDir, PERMANENT_DIR);
+        info('Previous installation restored');
+      } catch (restoreErr) {
+        warn('Could not restore previous installation');
+      }
+    }
   }
 
   // Create wrapper script
