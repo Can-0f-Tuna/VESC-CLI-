@@ -4,7 +4,7 @@ AI-controllable CLI for VESC motor controllers. Built with Bun + TypeScript.
 
 ## Install
 
-Run this command in your terminal:
+### Linux / macOS (bash/zsh)
 
 ```bash
 curl -fsSL -o install.mjs https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/master/install.mjs && node install.mjs && rm install.mjs
@@ -16,10 +16,10 @@ Or with Bun (faster):
 curl -fsSL -o install.mjs https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/master/install.mjs && bun install.mjs && rm install.mjs
 ```
 
-Or on Windows (PowerShell):
+### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/master/install.mjs -o install.mjs; node install.mjs; rm install.mjs
+irm https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/master/install.mjs -o install.mjs; node install.mjs; Remove-Item install.mjs
 ```
 
 This downloads the installer, installs both the `veac` CLI and the VESC agent skill, then cleans up.
