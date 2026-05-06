@@ -5,8 +5,8 @@
  * One-command installer that installs both the CLI tool and the agent skill.
  * 
  * Usage:
- *   curl -fsSL https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/main/install.mjs | bun run
- *   curl -fsSL https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/main/install.mjs | node
+ *   curl -fsSL https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/master/install.mjs | bun run
+ *   curl -fsSL https://raw.githubusercontent.com/Can-0f-Tuna/VESC-CLI-/master/install.mjs | node
  *   npx veac-install
  *   bunx veac-install
  *   node install.mjs
