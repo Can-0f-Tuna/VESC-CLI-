@@ -111,16 +111,16 @@ export class VescConnection {
     portName: string,
     baudRate: number = DEFAULT_BAUD_RATE
   ): Promise<VescConnection> {
-    const connection = new VescConnection(portName, baudRate);
+    const connection = new VescConnection({ path: portName, baudRate });
     await connection.connect();
     return connection;
   }
 
-  private constructor(portName: string, baudRate: number) {
-    this.portName = portName;
-    this.baudRate = baudRate;
+  constructor(options: { path: string; baudRate?: number; timeout?: number }) {
+    this.portName = options.path;
+    this.baudRate = options.baudRate ?? DEFAULT_BAUD_RATE;
     this.readBuffer = new Uint8Array(0);
-    this.timeoutMs = DEFAULT_TIMEOUT_MS;
+    this.timeoutMs = options.timeout ?? DEFAULT_TIMEOUT_MS;
   }
 
   /**
@@ -159,9 +159,22 @@ export class VescConnection {
   }
 
   /**
+   * Get connection status
+   *
+   * @returns Object with port path, baud rate, and open status
+   */
+  getStatus(): { path: string; baudRate: number; open: boolean } {
+    return {
+      path: this.portName,
+      baudRate: this.baudRate,
+      open: this.isOpen(),
+    };
+  }
+
+  /**
    * Open the serial connection
    */
-  private async connect(): Promise<void> {
+  public async connect(): Promise<void> {
     if (this.port?.isOpen) {
       throw serialError("Connection already open");
     }
@@ -213,8 +226,36 @@ export class VescConnection {
   }
 
   /**
+   * Send a pre-encoded packet (fire and forget)
+   *
+   * @param packet - Pre-encoded packet bytes
+   */
+  async sendRaw(packet: Uint8Array): Promise<void> {
+    if (!this.port?.isOpen) {
+      throw notConnectedError();
+    }
+
+    return new Promise((resolve, reject) => {
+      this.port!.write(Buffer.from(packet), (err) => {
+        if (err) {
+          reject(ioError("Failed to write to port", err));
+          return;
+        }
+
+        this.port!.drain((err) => {
+          if (err) {
+            reject(ioError("Failed to drain port", err));
+            return;
+          }
+          resolve();
+        });
+      });
+    });
+  }
+
+  /**
    * Send a command (fire and forget)
-   * 
+   *
    * @param command - The VESC command to send
    * @param payload - Optional payload data
    */
@@ -225,23 +266,7 @@ export class VescConnection {
 
     try {
       const packet = encodePacketToArray(command, payload);
-      
-      return new Promise((resolve, reject) => {
-        this.port!.write(Buffer.from(packet), (err) => {
-          if (err) {
-            reject(ioError("Failed to write to port", err));
-            return;
-          }
-
-          this.port!.drain((err) => {
-            if (err) {
-              reject(ioError("Failed to drain port", err));
-              return;
-            }
-            resolve();
-          });
-        });
-      });
+      await this.sendRaw(packet);
     } catch (error) {
       throw protocolError("Failed to encode packet", error as Error);
     }
@@ -341,6 +366,25 @@ export class VescConnection {
   }
 
   /**
+   * Decode and return all currently buffered packets
+   *
+   * @returns Array of decoded packets from the read buffer
+   */
+  receive(): DecodedPacket[] {
+    const packets: DecodedPacket[] = [];
+    while (true) {
+      try {
+        const packet = this.tryDecodePacket();
+        if (!packet) break;
+        packets.push(packet);
+      } catch {
+        break;
+      }
+    }
+    return packets;
+  }
+
+  /**
    * Send command and wait for response
    * 
    * This method:
@@ -371,6 +415,56 @@ export class VescConnection {
     const response = await this.receivePacket();
 
     return response.payload;
+  }
+
+  /**
+   * Send a pre-encoded packet and collect all responses within a timeout
+   *
+   * @param packet - Pre-encoded packet bytes
+   * @param timeoutMs - Timeout in milliseconds (uses default if not specified)
+   * @returns Array of decoded packets received within the timeout
+   */
+  async sendAndReceive(packet: Uint8Array, timeoutMs?: number): Promise<DecodedPacket[]> {
+    if (!this.port?.isOpen) {
+      throw notConnectedError();
+    }
+
+    const timeout = timeoutMs ?? this.timeoutMs;
+
+    // Clear any pending data
+    this.clearBuffer();
+    await this.drainPort(10);
+
+    // Send the packet
+    await this.sendRaw(packet);
+
+    // Collect all packets within timeout
+    const deadline = Date.now() + timeout;
+    const packets: DecodedPacket[] = [];
+
+    return new Promise((resolve, reject) => {
+      const checkForPackets = () => {
+        if (Date.now() >= deadline) {
+          resolve(packets);
+          return;
+        }
+
+        try {
+          while (true) {
+            const pkt = this.tryDecodePacket();
+            if (!pkt) break;
+            packets.push(pkt);
+          }
+        } catch (error) {
+          reject(protocolError("Failed to decode packet", error as Error));
+          return;
+        }
+
+        setTimeout(checkForPackets, 10);
+      };
+
+      checkForPackets();
+    });
   }
 
   /**
@@ -661,6 +755,13 @@ export class VescConnection {
         resolve();
       });
     });
+  }
+
+  /**
+   * Disconnect from the VESC (alias for close)
+   */
+  async disconnect(): Promise<void> {
+    return this.close();
   }
 }
 

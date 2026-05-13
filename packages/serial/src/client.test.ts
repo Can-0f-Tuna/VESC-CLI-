@@ -4,7 +4,7 @@
  * Unit tests for the VescClient class
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { describe, it, expect, beforeEach } from "bun:test";
 import { VescClient, VescCommand } from "../src/client.js";
 import { FaultCode, FirmwareInfo, MotorTelemetry } from "../src/types.js";
 import { Command } from "@veac/protocol";
@@ -138,16 +138,16 @@ describe("VescClient", () => {
 
   describe("VescCommand enum", () => {
     it("should have all expected commands", () => {
-      expect(VescCommand.GetVersion).toBe("GetVersion");
-      expect(VescCommand.GetValues).toBe("GetValues");
-      expect(VescCommand.SetDuty).toBe("SetDuty");
-      expect(VescCommand.SetCurrent).toBe("SetCurrent");
-      expect(VescCommand.SetCurrentBrake).toBe("SetCurrentBrake");
-      expect(VescCommand.SetRpm).toBe("SetRpm");
-      expect(VescCommand.SetPos).toBe("SetPos");
-      expect(VescCommand.SetHandbrake).toBe("SetHandbrake");
-      expect(VescCommand.Reboot).toBe("Reboot");
-      expect(VescCommand.Alive).toBe("Alive");
+      expect(VescCommand.GetVersion as string).toBe("GetVersion");
+      expect(VescCommand.GetValues as string).toBe("GetValues");
+      expect(VescCommand.SetDuty as string).toBe("SetDuty");
+      expect(VescCommand.SetCurrent as string).toBe("SetCurrent");
+      expect(VescCommand.SetCurrentBrake as string).toBe("SetCurrentBrake");
+      expect(VescCommand.SetRpm as string).toBe("SetRpm");
+      expect(VescCommand.SetPos as string).toBe("SetPos");
+      expect(VescCommand.SetHandbrake as string).toBe("SetHandbrake");
+      expect(VescCommand.Reboot as string).toBe("Reboot");
+      expect(VescCommand.Alive as string).toBe("Alive");
     });
   });
 
@@ -205,22 +205,22 @@ describe("VescClient", () => {
           await client.stop();
 
           // Get configurations
-          const mcConfig = await client.getMcConfig();
-          const appConfig = await client.getAppConfig();
+          await client.getMcConfig();
+          await client.getAppConfig();
 
           // Backup configurations
-          const configSet = await client.getConfigSet();
+          await client.getConfigSet();
 
           // CAN bus operations
           await client.canForward(1, Command.CommSetRpm, new Uint8Array([0, 0, 0, 0x03, 0xE8]));
-          const canAlive: boolean = await client.canPing(1);
+          await client.canPing(1);
 
           // Lisp operations
           await client.lispUpload("(print \"Hello VESC\")");
           await client.lispStart();
           await client.lispStop();
           await client.lispErase();
-          const output: string = await client.lispRepl("(+ 1 2 3)");
+          await client.lispRepl("(+ 1 2 3)");
 
           // Disconnect
           await client.disconnect();
