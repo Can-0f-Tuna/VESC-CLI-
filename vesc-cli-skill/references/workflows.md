@@ -2,6 +2,14 @@
 
 Comprehensive workflow documentation for interactive VESC setup and configuration.
 
+## Platform Notes
+
+All workflow examples in this document now include both **Linux/macOS (bash)** and **Windows PowerShell** variants. Where commands are identical across platforms, both variants are shown for clarity. PowerShell examples use standard cmdlets such as `Start-Sleep`, `Get-Date`, `Read-Host`, `Start-Job`, `Stop-Job`, `Get-Content`, and `ConvertFrom-Json`.
+
+> **Note:** The commands `veac motor detect` and `veac motor stream` are now **implemented** in the CLI. Sections that previously relied on them still demonstrate supported alternatives for compatibility and scripting flexibility.
+
+---
+
 ## Section 1: Interview Questionnaire Template
 
 Use this structured questionnaire when initiating the guided setup workflow:
@@ -282,7 +290,40 @@ This is the REQUIRED safe testing sequence. NEVER skip steps.
 
 **Test Sequence:**
 
+**Linux/macOS:**
 ```bash
+# 1. Connect and verify
+veac device connect
+veac motor get-values
+# Verify: No faults, reasonable temperatures
+
+# 2. Start with minimal current
+veac motor set-current 2.0
+# Observe for 10 seconds:
+# - Motor spins smoothly?
+# - Direction is correct?
+# - No abnormal sounds (grinding, clicking)?
+# - Current draw is reasonable (~2A)?
+veac motor stop
+
+# 3. Test reverse direction
+veac motor set-current -2.0
+# Same observations as above
+veac motor stop
+
+# 4. Test at slightly higher current
+veac motor set-current 5.0
+# Observe for 10 seconds
+# - Check temperature rise (should be minimal)
+# - Verify smooth operation
+veac motor stop
+
+# CHECKPOINT: If ANY anomaly detected, STOP and troubleshoot
+# before proceeding to Phase 2.
+```
+
+**Windows PowerShell:**
+```powershell
 # 1. Connect and verify
 veac device connect
 veac motor get-values
@@ -330,6 +371,7 @@ veac motor stop
 
 **Test Sequence:**
 
+**Linux/macOS:**
 ```bash
 # 1. Verify connection and status
 veac device connect
@@ -356,6 +398,33 @@ veac motor get-values
 # CHECKPOINT: All systems nominal? Proceed to Phase 3.
 ```
 
+**Windows PowerShell:**
+```powershell
+# 1. Verify connection and status
+veac device connect
+veac motor get-values
+
+# 2. Apply 25% of target current (or max 10A)
+veac motor set-current 10.0
+# Observe for 30 seconds:
+# - Belt/chain moving smoothly?
+# - No mechanical binding?
+# - Temperature rising slowly?
+veac motor stop
+
+# 3. Brief RPM test (if applicable)
+veac motor set-rpm 500
+# Low RPM test
+Start-Sleep -Seconds 5
+veac motor stop
+
+# 4. Check temperatures and faults
+veac motor get-values
+# Verify: Temps reasonable, no faults
+
+# CHECKPOINT: All systems nominal? Proceed to Phase 3.
+```
+
 **Pass Criteria:**
 - ✓ Mechanical system moves freely
 - ✓ No binding or unusual resistance
@@ -370,27 +439,44 @@ veac motor get-values
 - At least 10 minutes cooldown between phases
 - Ready for longer duration testing
 
+> **Note:** Continuous telemetry streaming (`veac motor stream`) is now implemented. Repeated `veac motor get-values` calls in a loop remain a valid alternative for scripting flexibility.
+
 **Test Sequence:**
 
+**Linux/macOS:**
 ```bash
-# 1. Start monitoring (background)
-veac motor stream --fields rpm,temp_motor,temp_controller,current_motor --rate 1 &
-MONITOR_PID=$!
-
-# 2. Apply 50% of target current
+# 1. Apply 50% of target current
 veac motor set-current 25.0
 
-# 3. Monitor for 60 seconds
-sleep 60
+# 2. Poll telemetry every 5 seconds for 60 seconds
+for i in {1..12}; do
+    veac motor get-values
+    sleep 5
+done
 
-# 4. Check status
-veac motor get-values
-
-# 5. Stop and cool down
+# 3. Stop and cool down
 veac motor stop
-kill $MONITOR_PID
 
-# 6. Verify temperatures are stable
+# 4. Verify temperatures are stable
+veac motor get-values
+# Wait for temps to stabilize before next phase
+```
+
+**Windows PowerShell:**
+```powershell
+# 1. Apply 50% of target current
+veac motor set-current 25.0
+
+# 2. Poll telemetry every 5 seconds for 60 seconds
+for ($i = 0; $i -lt 12; $i++) {
+    veac motor get-values
+    Start-Sleep -Seconds 5
+}
+
+# 3. Stop and cool down
+veac motor stop
+
+# 4. Verify temperatures are stable
 veac motor get-values
 # Wait for temps to stabilize before next phase
 ```
@@ -412,41 +498,65 @@ veac motor get-values
 
 **⚠️ WARNING:** This is the highest risk phase. Proceed with extreme caution.
 
+> **Note:** This phase uses fixed timed steps rather than interactive prompts so it can be used in scripts and automated workflows. Monitor closely and stop manually (`veac motor stop`) if any anomaly occurs.
+
 **Test Sequence:**
 
+**Linux/macOS:**
 ```bash
-# 1. Start continuous monitoring
-veac motor stream --fields rpm,temp_motor,temp_controller,current_motor,current_battery,voltage --rate 2 &
-MONITOR_PID=$!
+# 1. Define test levels and duration per level
+DURATION=15
 
-# 2. Trap Ctrl+C to ensure motor stops on interrupt
-trap 'veac motor stop; kill $MONITOR_PID; exit' INT TERM
-
-# 3. Gradual ramp to full current
-echo "Starting full power test..."
+# 2. Run each current level for a fixed duration
 for current in 40 60 80; do
-    echo "Testing at ${current}A..."
+    echo "Testing at ${current}A for ${DURATION}s..."
     veac motor set-current $current
-    sleep 15
-    veac motor get-values
-    # MANUAL CHECKPOINT: Stop if any concern
-    read -p "Continue to next level? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Stopping at user request"
-        break
-    fi
+    # Poll telemetry during the interval
+    for i in $(seq 1 $((DURATION / 5))); do
+        sleep 5
+        veac motor get-values
+    done
+    # MANUAL CHECKPOINT: Review output above. Stop if any concern.
+    # To stop: veac motor stop
+    # To continue: the loop proceeds automatically after ${DURATION}s
+    echo "Level ${current}A complete. Pausing 5s before next level..."
+    sleep 5
 done
 
-# 4. Final cleanup
+# 3. Final stop and verification
 veac motor stop
-kill $MONITOR_PID
-trap - INT TERM
-
-# 5. Final verification
 veac motor get-values
 # Verify: No faults, temps stabilizing
 ```
+
+**Windows PowerShell:**
+```powershell
+# 1. Define test levels and duration per level
+$DURATION = 15
+
+# 2. Run each current level for a fixed duration
+foreach ($current in 40, 60, 80) {
+    Write-Output "Testing at ${current}A for ${DURATION}s..."
+    veac motor set-current $current
+    # Poll telemetry during the interval
+    for ($i = 0; $i -lt ($DURATION / 5); $i++) {
+        Start-Sleep -Seconds 5
+        veac motor get-values
+    }
+    # MANUAL CHECKPOINT: Review output above. Stop if any concern.
+    # To stop: veac motor stop
+    # To continue: the loop proceeds automatically after ${DURATION}s
+    Write-Output "Level ${current}A complete. Pausing 5s before next level..."
+    Start-Sleep -Seconds 5
+}
+
+# 3. Final stop and verification
+veac motor stop
+veac motor get-values
+# Verify: No faults, temps stabilizing
+```
+
+> **Background monitoring note:** On Linux/macOS you can run a separate polling loop in another terminal or use `screen`/`tmux`. On Windows, you can open a second PowerShell window, or use `Start-Job { while ($true) { veac motor get-values; Start-Sleep -Seconds 5 } }`. To stop a background job: `Stop-Job $job` or `Get-Job | Stop-Job`.
 
 **Pass Criteria:**
 - ✓ Achieved target current without issues
@@ -462,8 +572,11 @@ veac motor get-values
 - System cooled to baseline temperatures
 - Ready for extended real-world testing
 
+> **Note:** Continuous telemetry streaming (`veac motor stream`) is now implemented. Manual polling or a scripted logging loop remains a valid alternative for maximum control.
+
 **Test Sequence:**
 
+**Linux/macOS:**
 ```bash
 # 1. Full operational scenario
 # This depends on application:
@@ -471,13 +584,21 @@ veac motor get-values
 # - Robot: Run full motion sequence
 # - Drone: Hover and maneuver
 
-# 2. Continuous telemetry logging
-veac motor stream --duration 300 > operational-test.log &
+# 2. Manual telemetry logging with timestamps (run in a second terminal)
+# Poll every 5 seconds for 5 minutes (60 samples)
+for i in {1..60}; do
+    ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    json=$(veac motor get-values --format json)
+    # Inject timestamp into the JSON object
+    echo "{\"timestamp\":\"$ts\",${json#?}" >> operational-test.log
+    sleep 5
+done
 
 # 3. Execute operational scenario
 # [User performs actual application tasks]
 
 # 4. Post-test analysis
+# If you have jq installed (winget install jqlang.jq on Windows):
 cat operational-test.log | jq -s '
     max_by(.temp_motor) as $max_temp |
     max_by(.current_motor) as $max_current |
@@ -495,6 +616,49 @@ cat operational-test.log | jq -s '
 veac config backup --output operational-config-$(date +%Y%m%d).json
 ```
 
+**Windows PowerShell:**
+```powershell
+# 1. Full operational scenario
+# This depends on application:
+# - E-skate: Ride at various speeds
+# - Robot: Run full motion sequence
+# - Drone: Hover and maneuver
+
+# 2. Manual telemetry logging with timestamps (run in a second PowerShell window)
+# Poll every 5 seconds for 5 minutes (60 samples)
+for ($i = 0; $i -lt 60; $i++) {
+    $ts = Get-Date -Format "o"
+    $json = veac motor get-values --format json
+    # Inject timestamp into the JSON object
+    $json -replace '^{', "{`"timestamp`":`"$ts`"," | Add-Content operational-test.log
+    Start-Sleep -Seconds 5
+}
+
+# 3. Execute operational scenario
+# [User performs actual application tasks]
+
+# 4. Post-test analysis using ConvertFrom-Json
+$records = Get-Content operational-test.log | ConvertFrom-Json
+$maxMotorTemp     = ($records | Measure-Object -Property temp_motor      -Maximum).Maximum
+$maxControllerTemp = ($records | Measure-Object -Property temp_controller -Maximum).Maximum
+$maxMotorCurrent  = ($records | Measure-Object -Property current_motor   -Maximum).Maximum
+$maxBatteryCurrent = ($records | Measure-Object -Property current_battery -Maximum).Maximum
+$minVoltage       = ($records | Measure-Object -Property voltage         -Minimum).Minimum
+
+Write-Output "Max motor temp:      $maxMotorTemp °C"
+Write-Output "Max controller temp: $maxControllerTemp °C"
+Write-Output "Max motor current:   $maxMotorCurrent A"
+Write-Output "Max battery current: $maxBatteryCurrent A"
+Write-Output "Min voltage:         $minVoltage V"
+
+# 5. Document results
+# Save configuration and performance summary
+$dateSuffix = Get-Date -Format "yyyyMMdd"
+veac config backup --output operational-config-$dateSuffix.json
+```
+
+> **jq availability:** `jq` is optional on all platforms. On Windows it can be installed via `winget install jqlang.jq` or `choco install jq`. PowerShell's `ConvertFrom-Json` provides equivalent functionality without external dependencies.
+
 **Pass Criteria:**
 - ✓ Completed full operational scenario
 - ✓ Temperatures stayed within limits throughout
@@ -506,24 +670,54 @@ veac config backup --output operational-config-$(date +%Y%m%d).json
 
 **If ANY anomaly detected at ANY phase:**
 
+**Linux/macOS:**
 ```bash
 # IMMEDIATE STOP
 veac motor stop
 
 # Check for faults
-veac motor get-values --format json | jq '.fault_code'
+veac motor get-values --format json
+# Parse the JSON in your environment (use jq if available)
+# jq '.fault_code'
 
 # If fault detected, do NOT proceed
 # Document the fault code and conditions
 
 # Check temperatures
-veac motor get-values --format json | jq '{temp_motor, temp_controller}'
+veac motor get-values --format json
+# Parse the JSON in your environment (use jq if available)
+# jq '{temp_motor, temp_controller}'
 
 # Allow cooling if hot
 # Wait for temperatures < 50°C before investigating
 
 # Only after cooling, attempt to identify cause
 ```
+
+**Windows PowerShell:**
+```powershell
+# IMMEDIATE STOP
+veac motor stop
+
+# Check for faults
+$response = veac motor get-values --format json | ConvertFrom-Json
+Write-Output "Fault code: $($response.fault_code)"
+
+# If fault detected, do NOT proceed
+# Document the fault code and conditions
+
+# Check temperatures
+$response = veac motor get-values --format json | ConvertFrom-Json
+Write-Output "Motor temp: $($response.temp_motor) °C"
+Write-Output "Controller temp: $($response.temp_controller) °C"
+
+# Allow cooling if hot
+# Wait for temperatures < 50°C before investigating
+
+# Only after cooling, attempt to identify cause
+```
+
+> **Cross-platform JSON parsing:** All platforms can parse JSON without `jq`. On Linux/macOS, `python3 -c "import sys,json; d=json.load(sys.stdin); print(d['fault_code'])"` is a universal alternative. On Windows, `ConvertFrom-Json` is built-in.
 
 ### Test Failure Decision Tree
 
@@ -537,20 +731,20 @@ TEST FAILURE DETECTED
 ┌───┴───┐  ┌──┴────┐
 |       |  |       |
 >0?   0?   HIGH   OK
- |      |    |      |
- STOP  MECH?  STOP  PROCEED
-  |      |           (with caution)
- LOG    CHECK
- |      |
- |   ┌──┴────┐
- |   |       |
- |  BIND?   ELEC?
- |   |       |
- |  FIX    CHECK
- |   |     WIRING
- |  RETEST  |
- |         RETEST
- |
+  |      |    |      |
+  STOP  MECH?  STOP  PROCEED
+   |      |           (with caution)
+  LOG    CHECK
+  |      |
+  |   ┌──┴────┐
+  |   |       |
+  |  BIND?   ELEC?
+  |   |       |
+  |  FIX    CHECK
+  |   |     WIRING
+  |  RETEST  |
+  |         RETEST
+  |
 [Document and troubleshoot]
 ```
 

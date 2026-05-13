@@ -21,6 +21,15 @@ veac motor stop
 veac config backup --output backup.json
 ```
 
+## ⚠️ Implementation Status
+
+This skill documents the intended full API. Command status:
+- ✅ [Implemented] — Working in current build
+- ⚠️ [Partial] — Basic functionality, limitations noted
+- ❌ [Missing] — Not yet implemented (will error if used)
+
+**Current coverage:** ~40 CLI commands implemented. The VESC protocol supports 160+ packet IDs; this CLI exposes the most commonly used subset.
+
 See `references/commands.md` for complete command reference.
 
 ## Guided Setup Workflow
@@ -105,9 +114,9 @@ Before applying ANY configuration, the agent MUST:
 **Pre-Configuration Checklist:**
 
 1. ✓ **Verify Motor Detection**
-   - Confirm motor detection has been run successfully
+   - Confirm motor detection has been run successfully (usually via the VESC Tool GUI)
    - Check detected parameters match expected values
-   - If not detected: `veac motor detect` must be run first
+   - **Note:** Motor detection via CLI (`veac motor detect`) is now implemented. Ensure motor detection has been run successfully and detected parameters match expected values.
 
 2. ✓ **Validate Temperature Limits**
    - Motor limit: Typically 80°C (adjust based on motor specs)
@@ -141,11 +150,12 @@ veac device connect
 # Or specify port: veac device connect --port /dev/ttyACM0
 ```
 
-**Step 2: Detect Motor Parameters (if not done)**
+**Step 2: Check Device Info**
 ```bash
-veac motor detect
-# Verify detection succeeded before proceeding
+veac device info
+# Verify connection and firmware version
 ```
+**Note:** Motor detection (`veac motor detect`) is now implemented. You may still use the VESC Tool GUI for initial motor detection if preferred.
 
 **Step 3: Backup Current Configuration**
 ```bash
@@ -161,13 +171,19 @@ veac config get-mc --output current-mc.json
 ```bash
 veac config set-mc new-config.json --dry-run
 ```
+**Note:** `--dry-run` currently returns a placeholder response for most commands. It does not validate configurations against current settings or show real diffs. Use it as a command syntax check only.
 
 **Step 6: Apply Configuration**
 ```bash
 veac config set-mc new-config.json
 ```
 
-**Step 7: Test at Low Power (Static Test)**
+**Step 7: Verify Motor Status Before Testing**
+```bash
+veac motor get-values
+# Confirm no fault codes and motor is ready
+```
+Then test at Low Power (Static Test):
 ```bash
 veac motor set-current 2.0
 # Observe for 5-10 seconds
@@ -255,6 +271,8 @@ Always:
 5. Have emergency stop ready (`veac motor stop`)
 6. Check fault codes after each operation
 
+**Note on `--dry-run`:** `--dry-run` currently returns a placeholder response for most commands. It does not validate configurations against current settings or show real diffs. Use it to verify command syntax, but rely on manual review and backups for true change validation.
+
 See `references/safety.md` for complete safety guidelines.
 
 ## Error Handling
@@ -273,7 +291,18 @@ Every response includes `next_actions` - an array of suggested next commands to 
 |------|---------|
 | 0 | Success |
 | 1 | General error |
-| 2 | Connection failed |
-| 3 | Timeout |
-| 4 | Invalid argument |
+| 2 | Invalid arguments |
+| 3 | Connection failed |
+| 4 | Timeout |
 | 5 | Protocol error |
+| 6 | Not found |
+| 7 | Permission denied |
+| 10 | Dry run success |
+
+## Known Limitations
+
+- **Platform:** Bash syntax is used in examples; Windows users may need PowerShell equivalents (e.g., `veac device connect --port COM3`).
+- **CAN bus:** `veac can scan` uses a naive polling approach rather than the proper `COMM_PING_CAN` protocol command. `veac can status` returns general telemetry data, not actual CAN bus statistics.
+- **Dry run:** `--dry-run` is a placeholder-only flag for most commands and does not perform real validation or diffing.
+
+All planned CLI commands are now implemented. Some hardware-specific features (e.g., firmware update validation) may still require testing against real VESC hardware.

@@ -82,7 +82,7 @@ veac/
 
 ## Project Status
 
-🟡 **Phase: Migration in Progress** → Stage 3/10: Documentation Update
+🟡 **Phase: Migration in Progress** → Stage 6-7/10: Testing & Build System
 
 See [state.md](./state.md) for detailed progress tracking.
 
