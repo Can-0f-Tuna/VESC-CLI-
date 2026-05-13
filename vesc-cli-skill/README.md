@@ -53,11 +53,13 @@ Agent: I'll help you set that up! Let me ask a few questions about your hardware
 ```
 
 The agent will:
-- Interview you about your hardware (VESC model, motor, battery)
-- Look up specifications from the hardware database
-- Present behavior options (startup, speed limits, acceleration, braking)
-- Calculate safe current and speed limits
-- Execute with 10-step safety validation
+1. **Verify USB connection** — Check that the VESC is plugged into your computer
+2. **Interview you about your hardware** (VESC model, motor, battery)
+3. **Verify physical wiring** — Guide you to check motor phases, sensors, power connections
+4. **Look up specifications** from the hardware database
+5. **Present behavior options** (startup, speed limits, acceleration, braking)
+6. **Calculate safe current and speed limits**
+7. **Execute with 10-step safety validation**
 
 ### 2. Direct Command Execution
 
@@ -119,8 +121,17 @@ vesc-cli-skill/
 ```
 User: I just got a Flipsky FSESC 6.7 and want to set it up for my e-skate
 
-Agent: Great choice! The Flipsky FSESC 6.7 is a solid VESC 6 based controller.
-       To help you configure it safely, I need to know:
+Agent: Hello! I'm your VESC configuration assistant. Before we begin, I need to
+       verify your controller is connected to your computer.
+
+       [runs veac device list-ports]
+
+       I found these serial ports: COM3, COM4.
+       Is your VESC USB cable plugged in?
+
+User: Yes, it's connected
+
+Agent: Great! Let's identify your hardware.
 
        1. What motor are you using? (e.g., Flipsky 6374 190kV)
        2. What's your battery setup? (e.g., 10S4P with Samsung 30Q)
@@ -135,9 +146,21 @@ Agent: Reading hardware specifications...
        - Motor: Flipsky 6374 190kV (3150W max, 80A current, 190kV)
        - Battery: 10S4P Samsung 30Q (42V max, 15A per cell, 60A total)
 
-       Safe Maximums:
-       - Motor current: 80A max (motor limit)
-       - Battery current: 60A max (battery limit)
+       Before we configure anything, let's make sure all the cables are connected
+       correctly. This is critical for safety.
+
+       1. Are the three thick motor phase wires (yellow, blue, green) securely
+          screwed into the VESC motor terminals?
+       2. Does your motor have hall sensors? If yes, is the connector plugged in?
+       3. Are the battery positive (+) and negative (-) connections tight and
+          insulated? (No reverse polarity?)
+       4. Is the USB cable still connected?
+
+User: Yes, everything is connected properly
+
+Agent: Perfect. Here are the SAFE maximums for your hardware:
+       - Motor current: 80A max (motor limit: 80A, VESC limit: 100A)
+       - Battery current: 60A max (battery limit: 60A)
        - Recommended: 50A motor / 40A battery for daily use
 
        Based on your setup, here are the behavior options available to you:
