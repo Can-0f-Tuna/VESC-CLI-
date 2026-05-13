@@ -1,3 +1,9 @@
+---
+name: vesc-skill
+displayName: VESC CLI (veac)
+description: "Comprehensive guidance for controlling VESC motor controllers via the veac CLI. Use for BLDC/FOC motor control, CAN bus, LispBM scripting, and VESC automation."
+---
+
 # VESC CLI (veac) Skill
 
 ## Description
