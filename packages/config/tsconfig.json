@@ -18,8 +18,8 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "lib": ["ES2022"],
-    "types": ["bun-types"]
   },
+
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

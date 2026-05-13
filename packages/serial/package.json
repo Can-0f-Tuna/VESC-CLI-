@@ -4,9 +4,9 @@
   "description": "Serial port communication for VESC - wraps serialport for Bun compatibility",
   "type": "module",
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./src/index.ts",
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target node",
+    "build": "bun build ./src/index.ts --outdir ./dist --target node --external serialport --external @serialport/parser-readline",
     "dev": "bun run --watch ./src/index.ts",
     "test": "bun test",
     "lint": "tsc --noEmit && echo 'Type check passed'",
@@ -28,7 +28,7 @@
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./src/index.ts"
     }
   }
 }
