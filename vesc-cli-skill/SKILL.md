@@ -1,3 +1,9 @@
+---
+name: vesc-cli-skill
+displayName: VESC CLI
+description: "Agent-first CLI tool for controlling VESC motor controllers with HATEOAS-style JSON responses and self-documenting command trees."
+---
+
 # VESC CLI Skill
 
 Agent-first CLI tool for controlling VESC motor controllers with HATEOAS-style JSON responses and self-documenting command trees.
