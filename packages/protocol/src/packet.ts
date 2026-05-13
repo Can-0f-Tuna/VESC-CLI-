@@ -2,7 +2,6 @@ import {
   START_BYTE_SHORT,
   START_BYTE_LONG,
   STOP_BYTE,
-  MAX_PAYLOAD_LEN,
   MAX_PACKET_SIZE,
 } from "./constants";
 import { Command, commandToU8, commandFromU8, validateCommandPayload } from "./commands";
@@ -12,10 +11,8 @@ import {
   PacketBuffer,
   FirmwareVersion,
   parseNullTerminatedString,
-  parseUuid,
 } from "./types";
 import {
-  ProtocolError,
   invalidStartByte,
   invalidStopByte,
   crcMismatch,
@@ -173,8 +170,6 @@ function decodePacketInternal(
   // Determine packet type and length
   let payloadLen: number;
   let headerLen: number;
-  let isShort: boolean;
-  
   switch (startByte) {
     case START_BYTE_SHORT: {
       // Short packet: 0x02 [len:u8] [payload:N] [CRC:u16] 0x03
@@ -183,7 +178,6 @@ function decodePacketInternal(
       }
       payloadLen = data[1];
       headerLen = 2;
-      isShort = true;
       break;
     }
     case START_BYTE_LONG: {
@@ -193,7 +187,6 @@ function decodePacketInternal(
       }
       payloadLen = ((data[1] << 8) | data[2]) >>> 0; // Ensure unsigned
       headerLen = 3;
-      isShort = false;
       break;
     }
     default:

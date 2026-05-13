@@ -37,33 +37,32 @@ import {
 // ============================================================================
 
 describe("Command Enum", () => {
-  test("command enum roundtrip - all 58 commands", () => {
+  test("command enum roundtrip - all 160 commands", () => {
     const commands = getAllCommands();
-    
-    expect(commands).toHaveLength(58);
-    
+
+    expect(commands).toHaveLength(160);
+
     for (const cmd of commands) {
       const byte = commandToU8(cmd);
       const roundtrip = commandFromU8(byte);
       expect(roundtrip).toBe(cmd);
     }
   });
-  
+
   test("command from_u8 invalid values", () => {
-    expect(commandFromU8(58)).toBeUndefined();
-    expect(commandFromU8(100)).toBeUndefined();
+    expect(commandFromU8(160)).toBeUndefined();
     expect(commandFromU8(200)).toBeUndefined();
     expect(commandFromU8(255)).toBeUndefined();
   });
-  
+
   test("command from_u8 all valid", () => {
-    for (let i = 0; i <= 57; i++) {
+    for (let i = 0; i <= 159; i++) {
       const cmd = commandFromU8(i);
       expect(cmd).toBeDefined();
       expect(commandToU8(cmd!)).toBe(i);
     }
   });
-  
+
   test("command enum values are correct", () => {
     expect(Command.CommFwVersion).toBe(0);
     expect(Command.CommJumpToBootloader).toBe(1);
@@ -73,7 +72,7 @@ describe("Command Enum", () => {
     expect(Command.CommSetRpm).toBe(8);
     expect(Command.CommReboot).toBe(29);
     expect(Command.CommAlive).toBe(30);
-    expect(Command.CommLogDataF32).toBe(57);
+    expect(Command.CommLogDataF32).toBe(148);
   });
 });
 
@@ -323,25 +322,25 @@ describe("Packet Decoding", () => {
   });
   
   test("decode unknown command", () => {
-    // Manually construct a packet with invalid command byte (100)
+    // Manually construct a packet with invalid command byte (200)
     const buffer = createPacketBuffer();
     const validPacket = encodePacket(buffer, Command.CommAlive);
-    
+
     // Modify the command byte position
     const modified = new Uint8Array(validPacket);
-    modified[2] = 100; // Unknown command
-    
+    modified[2] = 200; // Unknown command (>159)
+
     // Recalculate CRC for the modified payload
-    const payload = new Uint8Array([100]);
+    const payload = new Uint8Array([200]);
     const crc = calculateCrc(payload);
     const crcPos = validPacket.length - 3;
     modified[crcPos] = (crc >>> 8) & 0xFF;
     modified[crcPos + 1] = crc & 0xFF;
-    
+
     expect(() => {
       decodePacket(modified);
     }).toThrow(ProtocolError);
-    
+
     try {
       decodePacket(modified);
     } catch (e) {
@@ -749,28 +748,28 @@ describe("Error Handling", () => {
   });
   
   test("unknown command detection", () => {
-    // Manually construct a packet with invalid command byte (100)
+    // Manually construct a packet with invalid command byte (200)
     const buffer = createPacketBuffer();
     const validPacket = encodePacket(buffer, Command.CommAlive);
-    
+
     // Modify command byte to invalid value
     const modified = new Uint8Array(validPacket);
-    modified[2] = 100; // Unknown command
-    
+    modified[2] = 200; // Unknown command (>159)
+
     // Recalculate CRC for the modified payload
-    const payload = new Uint8Array([100]);
+    const payload = new Uint8Array([200]);
     const crc = calculateCrc(payload);
     const crcPos = validPacket.length - 3;
     modified[crcPos] = (crc >>> 8) & 0xFF;
     modified[crcPos + 1] = crc & 0xFF;
-    
+
     expect(() => decodePacket(modified)).toThrow(ProtocolError);
-    
+
     try {
       decodePacket(modified);
     } catch (e) {
       expect((e as ProtocolError).kind).toBe("UnknownCommand");
-      expect((e as ProtocolError).details?.command).toBe(100);
+      expect((e as ProtocolError).details?.command).toBe(200);
     }
   });
   
