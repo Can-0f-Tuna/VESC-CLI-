@@ -2,22 +2,40 @@
 
 **AI-controllable CLI for VESC motor controllers with interactive guided setup.**
 
-Provides comprehensive support for VESC motor control, CAN bus operations, LispBM scripting, and configuration management with an intelligent workflow system.
+When you load this skill, the AI agent will automatically interview you about your hardware and present safe configuration options — no need to know the commands yourself.
 
 ---
 
-## Installation
+## How It Works
 
-Install this skill with a single command:
+### 1. Start a Conversation
+Just tell the agent you want to configure your VESC:
 
-```bash
-bunx skills add https://github.com/Can-0f-Tuna/VESC-CLI-.git --skill vesc-cli
+```
+User: I want to configure my VESC
+Agent: Hello! I'm your VESC configuration assistant. I'll help you set up your motor controller safely. To give you the best options, I need to understand your hardware first.
+
+What VESC controller are you using? (e.g., VESC 4.12, VESC 6, Flipsky FSESC)
 ```
 
-**Requirements:**
-- Node.js ≥ 18.0
-- Bun runtime ≥ 1.0
-- `veac` CLI installed globally: `bun install -g @veac/cli`
+The agent will ask you about:
+- **Your controller** (VESC model)
+- **Your motor** (brand, kV rating, current limit)
+- **Your battery** (type, voltage, configuration)
+- **Your application** (e-skate, e-bike, robot, etc.)
+- **Your goals** (speed, torque, range, safety level)
+
+### 2. Choose Your Behavior
+Based on your hardware, the agent presents options like:
+
+- **Startup style**: Jump to speed instantly, or ramp up slowly?
+- **Speed limit**: Cap the top speed for safety, or full range?
+- **Acceleration**: Gentle, medium, or aggressive?
+- **Braking**: Regenerative, active braking, or coast?
+- **Control mode**: Torque control, speed control, or simple throttle?
+
+### 3. Safe Execution
+The agent calculates safe limits from your hardware specs, shows you exactly what will be applied, asks for confirmation, then executes with progressive testing — starting at low power and working up.
 
 ---
 
@@ -37,7 +55,8 @@ Agent: I'll help you set that up! Let me ask a few questions about your hardware
 The agent will:
 - Interview you about your hardware (VESC model, motor, battery)
 - Look up specifications from the hardware database
-- Present preset configurations (Conservative / Balanced / Performance / Custom)
+- Present behavior options (startup, speed limits, acceleration, braking)
+- Calculate safe current and speed limits
 - Execute with 10-step safety validation
 
 ### 2. Direct Command Execution
@@ -59,12 +78,27 @@ Agent: Reading Flipsky motor specifications...
 
 ---
 
+## Installation
+
+Install this skill with a single command:
+
+```bash
+bunx skills add https://github.com/Can-0f-Tuna/VESC-CLI-.git --skill vesc-cli
+```
+
+**Requirements:**
+- Node.js ≥ 18.0
+- Bun runtime ≥ 1.0
+- `veac` CLI installed globally: `bun install -g @veac/cli`
+
+---
+
 ## Skill Structure
 
 ```
 vesc-cli-skill/
-├── SKILL.md                      # Entry point (triggers, quick start, workflow)
-├── commands.md                   # Complete command reference (all 65+ commands)
+├── SKILL.md                      # Entry point (agent role, behavior rules, interview flow)
+├── commands.md                   # Complete command reference (all 40 commands)
 ├── examples.md                   # Usage examples with interactive dialogue
 ├── safety.md                     # Safety protocols and configuration checks
 ├── troubleshooting.md            # Common errors and solutions
@@ -80,71 +114,12 @@ vesc-cli-skill/
 
 ---
 
-## Interactive Workflow Features
-
-### Phase 1: Hardware Discovery
-The agent asks structured questions:
-1. VESC controller model
-2. Motor model and kV rating
-3. Battery configuration (voltage, capacity, cell type)
-4. Application type (e-skate, e-bike, robot, etc.)
-5. Temperature constraints
-6. Current limits
-
-### Phase 2: Configuration Options
-Based on your hardware, the agent presents:
-
-| Preset | Motor Current | Battery Current | Temp Limits | Best For |
-|--------|--------------|-----------------|-------------|----------|
-| **Conservative** | 30-40A | 20-30A | 80°C max | Beginners, testing |
-| **Balanced** | 50-60A | 40-50A | 85°C max | Daily use |
-| **Performance** | 70-80A | 60-70A | 90°C max | Experienced users |
-| **Custom** | User-defined | User-defined | Custom | Specific needs |
-
-### Phase 3: Safety Checkpoints
-- Voltage compatibility verification
-- Current within safe margins
-- Temperature limits configured
-- Fault code monitoring enabled
-- Emergency stop tested
-
-### Phase 4: Execution
-- Command preview with dry-run option
-- Live status monitoring
-- Post-execution verification
-- `next_actions` suggestions for follow-up commands
-
----
-
-## Hardware Database
-
-The skill includes comprehensive documentation for:
-
-### Controllers (30+ Models)
-- **Official VESC**: 4.12, 6, Express, HD60/HD75, 75/300, 100/250
-- **VESC Labs 2025**: Minim, Duet, Classic, Maxim series
-- **Third-party**: Flipsky, Makerbase, Spintend, Torqueboards, Cheap FOCer
-
-### Motors (50+ Variants)
-- **E-Skate**: Maytech, Flipsky, Torqueboards, BKB, Eovan
-- **E-Bike**: Bafang BBS02/BBSHD, QS Motor 205/273, MXUS 3K Turbo
-- **Budget**: Turnigy SK3/SK8, Generic 50xx/63xx
-- **Specialty**: T-Motor UAV motors
-
-### Batteries
-- **Cell Types**: 11 major models (Samsung, LG, Sony, Molicel, Panasonic)
-- **Configurations**: 6S, 10S, 12S, 14S, 20S setup guides
-- **Safety**: Thermal runaway prevention, BMS selection, emergency protocols
-
----
-
-## Usage Examples
-
-### Setup a New VESC
+## Example Conversation
 
 ```
 User: I just got a Flipsky FSESC 6.7 and want to set it up for my e-skate
-Agent: Great choice! The Flipsky FSESC 6.7 is a solid VESC 6 based controller. 
+
+Agent: Great choice! The Flipsky FSESC 6.7 is a solid VESC 6 based controller.
        To help you configure it safely, I need to know:
 
        1. What motor are you using? (e.g., Flipsky 6374 190kV)
@@ -152,97 +127,65 @@ Agent: Great choice! The Flipsky FSESC 6.7 is a solid VESC 6 based controller.
        3. What's your application? (e-skate, e-bike, robot, etc.)
 
 User: I have Flipsky 6374 190kV and 10S4P Samsung 30Q, e-skate
+
 Agent: Reading hardware specifications...
-       
+
        Hardware Profile:
        - VESC: Flipsky FSESC 6.7 (60V max, 100A burst, VESC 6 based)
        - Motor: Flipsky 6374 190kV (3150W max, 80A current, 190kV)
        - Battery: 10S4P Samsung 30Q (42V max, 15A per cell, 60A total)
-       
-       Calculated Safe Limits:
+
+       Safe Maximums:
        - Motor current: 80A max (motor limit)
        - Battery current: 60A max (battery limit)
        - Recommended: 50A motor / 40A battery for daily use
-       
-       Recommended Preset: Balanced
-       - Motor current: 50A
-       - Battery current: 40A  
-       - ERPM limit: 100,000
-       - Temperature cutoff: 85°C start, 100°C cutoff
-       
-       Would you like me to apply the Balanced preset? (Conservative/Balanced/Performance/Custom)
 
-User: Balanced
+       Based on your setup, here are the behavior options available to you:
+
+       A. Startup Style
+          [1] Jump to target speed instantly — best for racing, experienced users
+          [2] Ramp up slowly from standstill — best for skateboards, beginners (RECOMMENDED)
+          [3] Gradual torque from zero — best for hill starts, heavy loads
+
+       B. Speed Limit
+          [1] Cap at safe speed for beginners — limit to 30 km/h equivalent
+          [2] No limit — full hardware capability
+          [3] Variable modes — Eco/Sport/Race with different limits
+
+       C. Acceleration
+          [1] Gentle — smooth, predictable, longest range (RECOMMENDED)
+          [2] Medium — responsive but controlled, good for daily use
+          [3] Aggressive — immediate response, maximum thrill
+
+       Which options would you like? I recommend [2] for startup, [1] for speed limit,
+       and [1] for acceleration for a safe first setup.
+
+User: Let's go with your recommendations
+
+Agent: I will apply the following settings:
+       - Motor current: 50A
+       - Battery current: 40A
+       - Startup: Ramp up slowly
+       - Speed limit: 30 km/h equivalent
+       - Acceleration: Gentle
+       - Control mode: Current (torque)
+       - Braking: Regenerative
+
+       Type 'yes' to proceed, or tell me what to change.
+
+User: yes
+
 Agent: Applying configuration... [executes veac commands]
-       ✓ Configuration complete! 
+       ✓ Configuration complete!
+       ✓ Static test passed (2A, no faults)
+       ✓ Low power test passed (10A, temps stable)
+
        Your VESC is now configured for safe operation.
-       
+
        Next actions:
        1. veac motor get-values - Check motor status
        2. veac motor set-rpm 1000 - Test motor at low RPM
        3. veac motor stop - Emergency stop
-```
-
-### Direct Motor Control
-
-```
-User: veac motor set-current 5.0
-Agent: Executing veac motor set-current 5.0...
-       ✓ Success! Motor current set to 5.0A
-       
-       Motor is now running with 5A current.
-       
-       Next actions:
-       1. veac motor get-values - Check telemetry
-       2. veac motor stop - Stop motor
-       3. veac motor set-current 10.0 - Increase current
-```
-
-### Configuration Backup
-
-```
-User: Backup my VESC config
-Agent: Creating complete backup...
-       ✓ Motor configuration backed up
-       ✓ App configuration backed up
-       Backup saved to vesc-backup-2025-01-08.json
-       
-       Next actions:
-       1. veac config restore vesc-backup-2025-01-08.json - Restore from this backup
-       2. veac config get-mc --output mc-conf.xml - Export motor config
-```
-
-### Hardware Specs Lookup
-
-```
-User: What are the specs for VESC 75/300?
-Agent: Reading VESC 75/300 specifications...
-
-       VESC 75/300 - Ultra-High Current Controller
-       ─────────────────────────────────────────
-       
-       Electrical Specifications:
-       - Max Voltage: 75V (18S Li-ion / 22S LiPo max)
-       - Max Current: 300A (phase shunt design)
-       - Continuous Current: ~150A (depends on cooling)
-       - Wattage: 22,500W max
-       
-       Hardware:
-       - CPU: STM32F4
-       - Shunt Type: Phase shunt (three phases)
-       - Cooling: Forced air + optional liquid cooling
-       - Connectors: 8mm bullet connectors (power)
-       
-       Use Cases:
-       - High-power e-bikes and e-motos
-       - Electric motorcycles
-       - EV conversions
-       - High-torque robotics
-       
-       Typical Motor Pairing:
-       - 3000-8000W BLDC motors
-       - 20S-24S battery packs
-       - 200-300A capable battery systems
 ```
 
 ---
@@ -251,12 +194,14 @@ Agent: Reading VESC 75/300 specifications...
 
 The skill enforces safety at every step:
 
+- **Hardware-aware limits**: Safe current/speed calculated from your specs
 - **Temperature monitoring**: Configurable temp cutoffs
 - **Current limits**: Prevents exceeding hardware ratings
 - **Voltage protection**: Validates battery-VESC compatibility
 - **Dry-run mode**: Preview changes before applying
 - **Emergency protocols**: Built-in stop commands
 - **Fault detection**: Monitors and reports fault codes
+- **Progressive testing**: Always starts at 2A, works up slowly
 
 ---
 
@@ -265,14 +210,15 @@ The skill enforces safety at every step:
 | Category | Commands | Description |
 |----------|----------|-------------|
 | **Device** | 5 | Port listing, connection, info, ping |
-| **Motor** | 8 | RPM, current, duty, brake, stop, values |
-| **CAN** | 6 | ID setting, scanning, forwarding, status |
-| **Lisp** | 9 | Upload, REPL, memory, stats, erase |
-| **Config** | 7 | Read, write, backup, restore, erase |
+| **Motor** | 10 | RPM, current, duty, brake, stop, values, detect, stream, position, handbrake |
+| **CAN** | 4 | ID setting, scanning, forwarding, status |
+| **Lisp** | 9 | Upload, REPL, memory, stats, erase, start, stop, read, write |
+| **Config** | 6 | Read, write, backup, restore |
 | **Terminal** | 2 | Interactive REPL, single command |
-| **Utility** | 3 | Completions, schema, version |
+| **Firmware** | 2 | Info, update |
+| **Utility** | 2 | Completions, schema |
 
-**Total: 65+ commands documented**
+**Total: 40 commands implemented**
 
 ---
 
@@ -282,7 +228,7 @@ The skill includes comprehensive troubleshooting guides:
 
 - Connection failures and port issues
 - Command timeouts
-- Invalid argument errors  
+- Invalid argument errors
 - Protocol errors
 - Motor control failures
 - CAN bus issues
