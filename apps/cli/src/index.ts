@@ -9,8 +9,7 @@ import { VescConnection } from '@veac/serial';
 import { 
   Command as VescCommand, 
   encodePacketToArray,
-  parseFirmwareVersion,
-  type DecodedPacket 
+  parseFirmwareVersion
 } from '@veac/protocol';
 import { 
   createSuccessResponse, 
@@ -81,51 +80,69 @@ function formatResponse(response: unknown, format: OutputFormat): string {
   return formatOutput(response, format);
 }
 
+// VESC data type helpers (big-endian)
+function readDouble16(view: DataView, offset: number, scale: number): number {
+  return view.getInt16(offset, false) / scale;
+}
+
+function readDouble32(view: DataView, offset: number, scale: number): number {
+  return view.getInt32(offset, false) / scale;
+}
+
+function readInt32(view: DataView, offset: number): number {
+  return view.getInt32(offset, false);
+}
+
+function readUint8(view: DataView, offset: number): number {
+  return view.getUint8(offset);
+}
+
 // Parse motor values from COMM_GET_VALUES response payload
 function parseMotorValues(payload: Uint8Array): Record<string, number> {
-  if (payload.length < 10) {
+  // Minimum size for the basic 16 fields in COMM_GET_VALUES (53 bytes)
+  if (payload.length < 53) {
     throw new Error('Invalid motor values payload');
   }
-  
+
   const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
   let offset = 0;
-  
-  // Temperatures (4 bytes each, float32)
-  const tempMos = view.getFloat32(offset, false); offset += 4;
-  const tempMotor = view.getFloat32(offset, false); offset += 4;
-  
-  // Currents (4 bytes each)
-  const currentMotor = view.getFloat32(offset, false); offset += 4;
-  const currentIn = view.getFloat32(offset, false); offset += 4;
-  
-  // Indices
-  const id = view.getFloat32(offset, false); offset += 4;
-  const iq = view.getFloat32(offset, false); offset += 4;
-  
-  // Duty (4 bytes)
-  const dutyNow = view.getFloat32(offset, false); offset += 4;
-  
-  // RPM (4 bytes)
-  const rpm = view.getFloat32(offset, false); offset += 4;
-  
-  // Voltage (4 bytes)
-  const vIn = view.getFloat32(offset, false); offset += 4;
-  
-  // Amp hours (4 bytes each)
-  const ampHours = view.getFloat32(offset, false); offset += 4;
-  const ampHoursCharged = view.getFloat32(offset, false); offset += 4;
-  
-  // Watt hours (4 bytes each)
-  const wattHours = view.getFloat32(offset, false); offset += 4;
-  const wattHoursCharged = view.getFloat32(offset, false); offset += 4;
-  
-  // Tachometer (4 bytes each)
-  const tachometer = view.getInt32(offset, false); offset += 4;
-  const tachometerAbs = view.getInt32(offset, false); offset += 4;
-  
-  // Fault code (1 byte)
-  const faultCode = payload[offset];
-  
+
+  // Temperatures (2 bytes each, double16 / 10)
+  const tempMos = readDouble16(view, offset, 10); offset += 2;
+  const tempMotor = readDouble16(view, offset, 10); offset += 2;
+
+  // Currents (4 bytes each, double32 / 100)
+  const currentMotor = readDouble32(view, offset, 100); offset += 4;
+  const currentIn = readDouble32(view, offset, 100); offset += 4;
+
+  // Id / Iq (4 bytes each, double32 / 100)
+  const id = readDouble32(view, offset, 100); offset += 4;
+  const iq = readDouble32(view, offset, 100); offset += 4;
+
+  // Duty (2 bytes, double16 / 1000)
+  const dutyNow = readDouble16(view, offset, 1000); offset += 2;
+
+  // RPM (4 bytes, int32)
+  const rpm = readInt32(view, offset); offset += 4;
+
+  // Voltage (2 bytes, double16 / 10)
+  const vIn = readDouble16(view, offset, 10); offset += 2;
+
+  // Amp hours (4 bytes each, double32 / 10000)
+  const ampHours = readDouble32(view, offset, 10000); offset += 4;
+  const ampHoursCharged = readDouble32(view, offset, 10000); offset += 4;
+
+  // Watt hours (4 bytes each, double32 / 10000)
+  const wattHours = readDouble32(view, offset, 10000); offset += 4;
+  const wattHoursCharged = readDouble32(view, offset, 10000); offset += 4;
+
+  // Tachometer (4 bytes each, int32)
+  const tachometer = readInt32(view, offset); offset += 4;
+  const tachometerAbs = readInt32(view, offset); offset += 4;
+
+  // Fault code (1 byte, uint8)
+  const faultCode = readUint8(view, offset);
+
   return {
     tempMos: Math.round(tempMos * 100) / 100,
     tempMotor: Math.round(tempMotor * 100) / 100,
@@ -146,20 +163,33 @@ function parseMotorValues(payload: Uint8Array): Record<string, number> {
   };
 }
 
-// Encode float32 to Uint8Array (big-endian)
-function encodeFloat32(value: number): Uint8Array {
-  const buffer = new ArrayBuffer(4);
-  const view = new DataView(buffer);
-  view.setFloat32(0, value, false);
-  return new Uint8Array(buffer);
-}
-
 // Encode int32 to Uint8Array (big-endian)
 function encodeInt32(value: number): Uint8Array {
   const buffer = new ArrayBuffer(4);
   const view = new DataView(buffer);
   view.setInt32(0, value, false);
   return new Uint8Array(buffer);
+}
+
+// Encode null-terminated string to Uint8Array
+function encodeNullTerminatedString(str: string): Uint8Array {
+  const encoder = new TextEncoder();
+  const encoded = encoder.encode(str);
+  const result = new Uint8Array(encoded.length + 1);
+  result.set(encoded);
+  result[encoded.length] = 0;
+  return result;
+}
+
+// Parse hex string to Uint8Array
+function parseHexString(hex: string): Uint8Array {
+  const cleaned = hex.replace(/\s/g, '').replace(/^0x/i, '');
+  if (cleaned.length % 2 !== 0) throw new Error('Hex string must have even length');
+  const bytes = new Uint8Array(cleaned.length / 2);
+  for (let i = 0; i < cleaned.length; i += 2) {
+    bytes[i / 2] = parseInt(cleaned.substring(i, i + 2), 16);
+  }
+  return bytes;
 }
 
 // ============================================================================
@@ -261,7 +291,7 @@ program
       
       // Verify connection with firmware version request
       const packet = encodePacketToArray(VescCommand.CommFwVersion);
-      await client.send(packet);
+      await client.sendRaw(packet);
       
       // Wait for response
       await sleep(100);
@@ -328,7 +358,7 @@ program
       const client = await createClient(options);
       
       const packet = encodePacketToArray(VescCommand.CommFwVersion);
-      await client.send(packet);
+      await client.sendRaw(packet);
       
       const responses = await client.sendAndReceive(packet, options.timeout);
       await client.disconnect();
@@ -397,7 +427,7 @@ program
       
       const startTime = Date.now();
       const packet = encodePacketToArray(VescCommand.CommFwVersion);
-      await client.send(packet);
+      await client.sendRaw(packet);
       
       const responses = await client.sendAndReceive(packet, options.timeout);
       const latency = Date.now() - startTime;
@@ -431,6 +461,49 @@ program
       );
       console.error(formatResponse(response, format));
       process.exit(ExitCode.TIMEOUT);
+    }
+  });
+
+program
+  .command('disconnect')
+  .alias('device disconnect')
+  .description('Disconnect from VESC device')
+  .action(async () => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+    
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'device disconnect',
+        { dryRun: true },
+        [nextAction('device disconnect', 'Disconnect for real')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+    
+    try {
+      // Note: There's no persistent connection in this CLI architecture.
+      // Each command creates and destroys its own connection.
+      // This command is a no-op for now but exists for API completeness.
+      const response = createSuccessResponse(
+        'device disconnect',
+        { disconnected: true, note: 'Each command manages its own connection. No persistent session to disconnect.' },
+        [
+          nextAction('device connect', 'Connect to device'),
+          nextAction('device list-ports', 'List available ports')
+        ]
+      );
+      
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'device disconnect',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.CONNECTION
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.CONNECTION_FAILED);
     }
   });
 
@@ -529,7 +602,7 @@ program
       
       const payload = encodeInt32(rpm * 1000); // VESC expects RPM * 1000
       const packet = encodePacketToArray(VescCommand.CommSetRpm, payload);
-      await client.send(packet);
+      await client.sendRaw(packet);
       
       // Handle duration if specified
       if (cmdOptions.duration) {
@@ -539,7 +612,7 @@ program
           // Stop motor after duration
           const stopPayload = encodeInt32(0);
           const stopPacket = encodePacketToArray(VescCommand.CommSetRpm, stopPayload);
-          await client.send(stopPacket);
+          await client.sendRaw(stopPacket);
         }
       }
       
@@ -601,19 +674,19 @@ program
     try {
       const client = await createClient(options);
       
-      const payload = encodeFloat32(amperes);
+      const payload = encodeInt32(amperes * 1000);
       const packet = encodePacketToArray(VescCommand.CommSetCurrent, payload);
-      await client.send(packet);
-      
+      await client.sendRaw(packet);
+
       // Handle duration if specified
       if (cmdOptions.duration) {
         const duration = parseInt(cmdOptions.duration, 10);
         if (!isNaN(duration) && duration > 0) {
           await sleep(duration * 1000);
           // Stop motor after duration (set current to 0)
-          const stopPayload = encodeFloat32(0);
+          const stopPayload = encodeInt32(0);
           const stopPacket = encodePacketToArray(VescCommand.CommSetCurrent, stopPayload);
-          await client.send(stopPacket);
+          await client.sendRaw(stopPacket);
         }
       }
       
@@ -674,9 +747,9 @@ program
     try {
       const client = await createClient(options);
       
-      const payload = encodeFloat32(duty);
+      const payload = encodeInt32(duty * 100000);
       const packet = encodePacketToArray(VescCommand.CommSetDuty, payload);
-      await client.send(packet);
+      await client.sendRaw(packet);
       
       await client.disconnect();
       
@@ -723,9 +796,9 @@ program
     try {
       const client = await createClient(options);
       
-      const payload = encodeFloat32(0);
+      const payload = encodeInt32(0);
       const packet = encodePacketToArray(VescCommand.CommSetCurrent, payload);
-      await client.send(packet);
+      await client.sendRaw(packet);
       
       await client.disconnect();
       
@@ -742,6 +815,400 @@ program
     } catch (error) {
       const response = createErrorResponse(
         'motor stop',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+program
+  .command('set-current-brake <amperes>')
+  .alias('motor set-current-brake')
+  .description('Apply current-based braking')
+  .action(async (amperesStr) => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+    const amperes = parseFloat(amperesStr);
+    
+    if (isNaN(amperes) || amperes < 0) {
+      const response = createErrorResponse(
+        'motor set-current-brake',
+        `Invalid brake current: ${amperesStr}. Must be a non-negative number`,
+        ErrorKind.VALIDATION,
+        'Provide a valid non-negative brake current value'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+    
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'motor set-current-brake',
+        { dryRun: true, amperes },
+        [nextAction('motor stop', 'Stop motor')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+    
+    try {
+      const client = await createClient(options);
+      
+      const payload = encodeInt32(amperes * 1000);
+      const packet = encodePacketToArray(VescCommand.CommSetCurrentBrake, payload);
+      await client.sendRaw(packet);
+      
+      await client.disconnect();
+      
+      const response = createSuccessResponse(
+        'motor set-current-brake',
+        { amperes },
+        [
+          nextAction('motor stop', 'Stop motor'),
+          nextAction('motor get-values', 'Get motor telemetry')
+        ]
+      );
+      
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'motor set-current-brake',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+program
+  .command('set-position <degrees>')
+  .alias('motor set-position')
+  .description('Set motor position in degrees')
+  .action(async (degreesStr) => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+    const degrees = parseFloat(degreesStr);
+    
+    if (isNaN(degrees)) {
+      const response = createErrorResponse(
+        'motor set-position',
+        `Invalid position: ${degreesStr}. Must be a valid number`,
+        ErrorKind.VALIDATION,
+        'Provide a valid position in degrees'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+    
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'motor set-position',
+        { dryRun: true, degrees },
+        [nextAction('motor stop', 'Stop motor')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+    
+    try {
+      const client = await createClient(options);
+      
+      const payload = encodeInt32(degrees * 1000000);
+      const packet = encodePacketToArray(VescCommand.CommSetPos, payload);
+      await client.sendRaw(packet);
+      
+      await client.disconnect();
+      
+      const response = createSuccessResponse(
+        'motor set-position',
+        { degrees },
+        [
+          nextAction('motor stop', 'Stop motor'),
+          nextAction('motor get-values', 'Get motor telemetry')
+        ]
+      );
+      
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'motor set-position',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+program
+  .command('set-handbrake <amperes>')
+  .alias('motor set-handbrake')
+  .description('Apply handbrake current')
+  .action(async (amperesStr) => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+    const amperes = parseFloat(amperesStr);
+    
+    if (isNaN(amperes) || amperes < 0) {
+      const response = createErrorResponse(
+        'motor set-handbrake',
+        `Invalid handbrake current: ${amperesStr}. Must be a non-negative number`,
+        ErrorKind.VALIDATION,
+        'Provide a valid non-negative handbrake current value'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+    
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'motor set-handbrake',
+        { dryRun: true, amperes },
+        [nextAction('motor stop', 'Stop motor')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+    
+    try {
+      const client = await createClient(options);
+      
+      const payload = encodeInt32(amperes * 1000);
+      const packet = encodePacketToArray(VescCommand.CommSetHandbrake, payload);
+      await client.sendRaw(packet);
+      
+      await client.disconnect();
+      
+      const response = createSuccessResponse(
+        'motor set-handbrake',
+        { amperes },
+        [
+          nextAction('motor stop', 'Stop motor'),
+          nextAction('motor get-values', 'Get motor telemetry')
+        ]
+      );
+      
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'motor set-handbrake',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+program
+  .command('detect')
+  .alias('motor detect')
+  .description('Auto-detect motor parameters')
+  .option('--current <A>', 'Detection current in amperes', '5')
+  .option('--min-rpm <RPM>', 'Minimum RPM during detection', '100')
+  .option('--low-duty <duty>', 'Low duty cycle threshold', '0.05')
+  .action(async (cmdOptions) => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+
+    const current = parseFloat(cmdOptions.current);
+    const minRpm = parseInt(cmdOptions.minRpm, 10);
+    const lowDuty = parseFloat(cmdOptions.lowDuty);
+
+    if (isNaN(current) || current <= 0) {
+      const response = createErrorResponse(
+        'motor detect',
+        `Invalid current: ${cmdOptions.current}. Must be > 0`,
+        ErrorKind.VALIDATION,
+        'Provide a positive current value'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+
+    if (isNaN(minRpm) || minRpm < 0) {
+      const response = createErrorResponse(
+        'motor detect',
+        `Invalid min-rpm: ${cmdOptions.minRpm}. Must be >= 0`,
+        ErrorKind.VALIDATION,
+        'Provide a non-negative min-rpm value'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+
+    if (isNaN(lowDuty) || lowDuty < 0 || lowDuty > 1) {
+      const response = createErrorResponse(
+        'motor detect',
+        `Invalid low-duty: ${cmdOptions.lowDuty}. Must be between 0 and 1`,
+        ErrorKind.VALIDATION,
+        'Provide a low-duty value between 0 and 1'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'motor detect',
+        { dryRun: true, current, minRpm, lowDuty },
+        [nextAction('motor detect', 'Detect for real')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+
+    try {
+      const client = await createClient(options);
+
+      const currentScaled = Math.round(current * 100);
+      const lowDutyScaled = Math.round(lowDuty * 1000);
+
+      const payload = new Uint8Array(10);
+      const view = new DataView(payload.buffer);
+      view.setInt32(0, currentScaled, false);
+      view.setInt32(4, minRpm, false);
+      view.setInt16(8, lowDutyScaled, false);
+
+      const packet = encodePacketToArray(VescCommand.CommDetectMotorParam, payload);
+      const responses = await client.sendAndReceive(packet, 30000);
+
+      await client.disconnect();
+
+      let payloadHex = '';
+      if (responses.length > 0) {
+        payloadHex = Buffer.from(responses[0].payload).toString('hex');
+      }
+
+      const response = createSuccessResponse(
+        'motor detect',
+        {
+          detected: true,
+          payloadHex,
+          parameters: 'Raw detection data received. Parse with VESC Tool GUI for detailed parameters.'
+        },
+        [
+          nextAction('motor get-values', 'Get motor telemetry'),
+          nextAction('config get-mc', 'Get motor configuration')
+        ]
+      );
+
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'motor detect',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+program
+  .command('stream')
+  .alias('motor stream')
+  .description('Stream telemetry continuously')
+  .option('--fields <fields>', 'Comma-separated fields to display')
+  .option('--rate <hz>', 'Update rate in Hz', '10')
+  .option('--duration <seconds>', 'Stream duration in seconds')
+  .action(async (cmdOptions) => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+
+    const fields = cmdOptions.fields ? cmdOptions.fields.split(',') : null;
+    const rate = parseInt(cmdOptions.rate || '10', 10);
+    const intervalMs = 1000 / rate;
+    const duration = cmdOptions.duration ? parseInt(cmdOptions.duration, 10) : null;
+
+    if (isNaN(rate) || rate <= 0 || rate > 1000) {
+      const response = createErrorResponse(
+        'motor stream',
+        `Invalid rate: ${cmdOptions.rate}. Must be 1-1000 Hz`,
+        ErrorKind.VALIDATION,
+        'Provide a valid rate between 1 and 1000 Hz'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+
+    if (duration !== null && (isNaN(duration) || duration <= 0)) {
+      const response = createErrorResponse(
+        'motor stream',
+        `Invalid duration: ${cmdOptions.duration}. Must be > 0`,
+        ErrorKind.VALIDATION,
+        'Provide a positive duration in seconds'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'motor stream',
+        { dryRun: true, rate, intervalMs, duration, fields },
+        [nextAction('motor stream', 'Stream for real')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+
+    try {
+      const client = await createClient(options);
+      const startTime = Date.now();
+      let sampleCount = 0;
+
+      let running = true;
+      const sigintHandler = () => { running = false; };
+      process.on('SIGINT', sigintHandler);
+
+      while (running) {
+        if (duration && (Date.now() - startTime) >= duration * 1000) {
+          break;
+        }
+
+        try {
+          const packet = encodePacketToArray(VescCommand.CommGetValues);
+          const responses = await client.sendAndReceive(packet, options.timeout);
+
+          if (responses.length > 0 && responses[0].command === VescCommand.CommGetValues) {
+            const values = parseMotorValues(responses[0].payload);
+            const output = fields ? Object.fromEntries(fields.map((f: string) => [f, values[f]])) : values;
+            console.log(JSON.stringify(output));
+            sampleCount++;
+          }
+        } catch {
+          // Skip failed samples and continue streaming
+        }
+
+        await sleep(intervalMs);
+      }
+
+      process.off('SIGINT', sigintHandler);
+      await client.disconnect();
+
+      const elapsedMs = Date.now() - startTime;
+      const response = createSuccessResponse(
+        'motor stream',
+        { streamed: true, duration: elapsedMs, samples: sampleCount },
+        [
+          nextAction('motor stop', 'Stop motor'),
+          nextAction('motor get-values', 'Get motor telemetry')
+        ]
+      );
+
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'motor stream',
         error instanceof Error ? error.message : 'Unknown error',
         ErrorKind.PROTOCOL,
         'Check connection and try again'
@@ -865,7 +1332,7 @@ program
       const client = await createClient(options);
       
       const packet = encodePacketToArray(VescCommand.CommSetMcConf, new Uint8Array(payload));
-      await client.send(packet);
+      await client.sendRaw(packet);
       
       await client.disconnect();
       
@@ -999,7 +1466,7 @@ program
       const client = await createClient(options);
       
       const packet = encodePacketToArray(VescCommand.CommSetAppConf, new Uint8Array(payload));
-      await client.send(packet);
+      await client.sendRaw(packet);
       
       await client.disconnect();
       
@@ -1029,7 +1496,7 @@ program
   .command('backup')
   .alias('config backup')
   .description('Backup all configurations')
-  .requiredOption('-o, --output <file>', 'Output backup file')
+  .option('-o, --output <file>', 'Output backup file', `veac-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`)
   .action(async (cmdOptions) => {
     const options = getGlobalOptions(program);
     const format = detectFormat(options.format, process.stdout.isTTY);
@@ -1145,13 +1612,13 @@ program
       // Restore motor config
       const mcPayload = Buffer.from(backup.motor.raw, 'base64');
       const mcPacket = encodePacketToArray(VescCommand.CommSetMcConf, new Uint8Array(mcPayload));
-      await client.send(mcPacket);
+      await client.sendRaw(mcPacket);
       await sleep(100);
       
       // Restore app config
       const appPayload = Buffer.from(backup.app.raw, 'base64');
       const appPacket = encodePacketToArray(VescCommand.CommSetAppConf, new Uint8Array(appPayload));
-      await client.send(appPacket);
+      await client.sendRaw(appPacket);
       
       await client.disconnect();
       
@@ -1215,7 +1682,7 @@ program
         const forwardPayload = new Uint8Array([id, VescCommand.CommFwVersion]);
         const packet = encodePacketToArray(VescCommand.CommForwardCan, forwardPayload);
         
-        await client.send(packet);
+        await client.sendRaw(packet);
         await sleep(50);
         
         const responses = client.receive();
@@ -1328,6 +1795,194 @@ program
     }
   });
 
+program
+  .command('can-set-id <id>')
+  .alias('can set-id')
+  .description('Set CAN bus ID for this VESC')
+  .action(async (idStr) => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+    const id = parseInt(idStr, 10);
+
+    if (isNaN(id) || id < 1 || id > 255) {
+      const response = createErrorResponse(
+        'can set-id',
+        `Invalid CAN ID: ${idStr}. Must be 1-255`,
+        ErrorKind.VALIDATION,
+        'Provide a valid CAN ID between 1 and 255'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'can set-id',
+        { dryRun: true, canId: id },
+        [nextAction('can scan', 'Scan CAN bus'), nextAction('motor get-values', 'Get motor telemetry')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+
+    try {
+      const client = await createClient(options);
+
+      const payload = new Uint8Array([1, id]);
+      const packet = encodePacketToArray(VescCommand.CommSetCanMode, payload);
+      await client.sendRaw(packet);
+
+      await client.disconnect();
+
+      const response = createSuccessResponse(
+        'can set-id',
+        { canId: id, mode: 'normal' },
+        [
+          nextAction('can scan', 'Scan CAN bus'),
+          nextAction('motor get-values', 'Get motor telemetry')
+        ]
+      );
+
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'can set-id',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+program
+  .command('can-forward <canId> <args...>')
+  .alias('can forward')
+  .description('Forward a command to another VESC on CAN bus')
+  .action(async (canIdStr, args) => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+    const targetCanId = parseInt(canIdStr, 10);
+
+    if (isNaN(targetCanId) || targetCanId < 1 || targetCanId > 255) {
+      const response = createErrorResponse(
+        'can forward',
+        `Invalid CAN ID: ${canIdStr}. Must be 1-255`,
+        ErrorKind.VALIDATION,
+        'Provide a valid CAN ID between 1 and 255'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+
+    const subcommand = args[0];
+    const supportedSubcommands = ['set-rpm', 'set-current', 'stop', 'get-values'];
+
+    if (!supportedSubcommands.includes(subcommand)) {
+      const response = createErrorResponse(
+        'can forward',
+        `Unsupported subcommand: ${subcommand}. Supported: ${supportedSubcommands.join(', ')}`,
+        ErrorKind.VALIDATION,
+        'Use a supported subcommand'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'can forward',
+        { dryRun: true, targetCanId, subcommand },
+        [nextAction('can forward', 'Forward another command'), nextAction('motor get-values', 'Get motor telemetry')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+
+    try {
+      const client = await createClient(options);
+
+      let subCommandId: VescCommand;
+      let subPayload: Uint8Array = new Uint8Array(0);
+
+      if (subcommand === 'set-rpm') {
+        const rpm = parseInt(args[1], 10);
+        if (isNaN(rpm)) {
+          throw new Error(`Invalid RPM: ${args[1]}`);
+        }
+        subCommandId = VescCommand.CommSetRpm;
+        subPayload = encodeInt32(rpm * 1000);
+      } else if (subcommand === 'set-current') {
+        const amperes = parseFloat(args[1]);
+        if (isNaN(amperes)) {
+          throw new Error(`Invalid current: ${args[1]}`);
+        }
+        subCommandId = VescCommand.CommSetCurrent;
+        subPayload = encodeInt32(amperes * 1000);
+      } else if (subcommand === 'stop') {
+        subCommandId = VescCommand.CommSetCurrent;
+        subPayload = encodeInt32(0);
+      } else {
+        subCommandId = VescCommand.CommGetValues;
+        subPayload = new Uint8Array(0);
+      }
+
+      const forwardPayload = new Uint8Array(1 + 1 + subPayload.length);
+      forwardPayload[0] = targetCanId;
+      forwardPayload[1] = subCommandId;
+      forwardPayload.set(subPayload, 2);
+
+      const packet = encodePacketToArray(VescCommand.CommForwardCan, forwardPayload);
+
+      if (subcommand === 'get-values') {
+        const responses = await client.sendAndReceive(packet, options.timeout);
+        await client.disconnect();
+
+        let values = null;
+        if (responses.length > 0 && responses[0].payload.length > 0) {
+          try {
+            values = parseMotorValues(responses[0].payload);
+          } catch {
+            // Response might not be motor values
+          }
+        }
+
+        const response = createSuccessResponse(
+          'can forward',
+          { forwarded: true, targetCanId, subcommand, values },
+          [
+            nextAction('can forward', 'Forward another command'),
+            nextAction('motor get-values', 'Get motor telemetry')
+          ]
+        );
+        console.log(formatResponse(response, format));
+      } else {
+        await client.sendRaw(packet);
+        await client.disconnect();
+
+        const response = createSuccessResponse(
+          'can forward',
+          { forwarded: true, targetCanId, subcommand },
+          [
+            nextAction('can forward', 'Forward another command'),
+            nextAction('motor get-values', 'Get motor telemetry')
+          ]
+        );
+        console.log(formatResponse(response, format));
+      }
+    } catch (error) {
+      const response = createErrorResponse(
+        'can forward',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check CAN bus connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
 // ============================================================================
 // Lisp Commands
 // ============================================================================
@@ -1374,7 +2029,7 @@ program
       for (let i = 0; i < codeBytes.length; i += CHUNK_SIZE) {
         const chunk = codeBytes.slice(i, i + CHUNK_SIZE);
         const packet = encodePacketToArray(VescCommand.CommLispWrite, chunk);
-        await client.send(packet);
+        await client.sendRaw(packet);
         await sleep(10);
       }
       
@@ -1432,7 +2087,7 @@ program
       const client = await createClient(options);
       
       const packet = encodePacketToArray(VescCommand.CommLispErase);
-      await client.send(packet);
+      await client.sendRaw(packet);
       
       await client.disconnect();
       
@@ -1485,7 +2140,7 @@ program
         const cmdBytes = encoder.encode(command);
         const packet = encodePacketToArray(VescCommand.CommLispReplCmd, cmdBytes);
         
-        await client.send(packet);
+        await client.sendRaw(packet);
         await sleep(100);
         
         const responses = client.receive();
@@ -1544,7 +2199,7 @@ program
               const cmdBytes = encoder.encode(trimmed);
               const packet = encodePacketToArray(VescCommand.CommLispReplCmd, cmdBytes);
               
-              await client.send(packet);
+              await client.sendRaw(packet);
               await sleep(100);
               
               const responses = client.receive();
@@ -1578,6 +2233,725 @@ program
     }
   });
 
+program
+  .command('lisp-start')
+  .alias('lisp start')
+  .description('Start Lisp execution')
+  .action(async () => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+    
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'lisp start',
+        { dryRun: true, action: 'start' },
+        [nextAction('lisp stop', 'Stop Lisp execution')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+    
+    try {
+      const client = await createClient(options);
+      
+      const payload = new Uint8Array([1]);
+      const packet = encodePacketToArray(VescCommand.CommLispSetRunning, payload);
+      await client.sendRaw(packet);
+      
+      await client.disconnect();
+      
+      const response = createSuccessResponse(
+        'lisp start',
+        { started: true },
+        [
+          nextAction('lisp stop', 'Stop Lisp execution'),
+          nextAction('lisp get-stats', 'Get Lisp statistics')
+        ]
+      );
+      
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'lisp start',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+program
+  .command('lisp-stop')
+  .alias('lisp stop')
+  .description('Stop Lisp execution')
+  .action(async () => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+    
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'lisp stop',
+        { dryRun: true, action: 'stop' },
+        [nextAction('lisp start', 'Start Lisp execution')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+    
+    try {
+      const client = await createClient(options);
+      
+      const payload = new Uint8Array([0]);
+      const packet = encodePacketToArray(VescCommand.CommLispSetRunning, payload);
+      await client.sendRaw(packet);
+      
+      await client.disconnect();
+      
+      const response = createSuccessResponse(
+        'lisp stop',
+        { stopped: true },
+        [
+          nextAction('lisp start', 'Start Lisp execution'),
+          nextAction('lisp get-stats', 'Get Lisp statistics')
+        ]
+      );
+      
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'lisp stop',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+program
+  .command('lisp-get-stats')
+  .alias('lisp get-stats')
+  .description('Get Lisp interpreter statistics')
+  .action(async () => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+    
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'lisp get-stats',
+        { dryRun: true },
+        [nextAction('lisp start', 'Start Lisp execution')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+    
+    try {
+      const client = await createClient(options);
+      
+      const packet = encodePacketToArray(VescCommand.CommLispGetStats);
+      const responses = await client.sendAndReceive(packet, options.timeout);
+      
+      await client.disconnect();
+      
+      const stats = responses.length > 0
+        ? Buffer.from(responses[0].payload).toString('hex')
+        : '';
+      
+      const response = createSuccessResponse(
+        'lisp get-stats',
+        { stats },
+        [
+          nextAction('lisp start', 'Start Lisp execution'),
+          nextAction('lisp stop', 'Stop Lisp execution')
+        ]
+      );
+      
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'lisp get-stats',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+program
+  .command('lisp-read')
+  .alias('lisp read')
+  .description('Read Lisp memory/code at address')
+  .option('-a, --address <addr>', 'Address to read from (hex or decimal)')
+  .option('-l, --length <bytes>', 'Number of bytes to read')
+  .action(async (cmdOptions) => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+
+    const addressStr = cmdOptions.address;
+    const lengthStr = cmdOptions.length;
+
+    if (!addressStr || !lengthStr) {
+      const response = createErrorResponse(
+        'lisp read',
+        'Both --address and --length are required',
+        ErrorKind.VALIDATION,
+        'Provide --address and --length options'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+
+    const addr = parseInt(addressStr, addressStr.startsWith('0x') ? 16 : 10);
+    const len = parseInt(lengthStr, 10);
+
+    if (isNaN(addr) || addr < 0) {
+      const response = createErrorResponse(
+        'lisp read',
+        `Invalid address: ${addressStr}`,
+        ErrorKind.VALIDATION,
+        'Provide a valid positive integer address'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+
+    if (isNaN(len) || len < 1 || len > 1024) {
+      const response = createErrorResponse(
+        'lisp read',
+        `Invalid length: ${lengthStr}. Must be 1-1024`,
+        ErrorKind.VALIDATION,
+        'Provide a valid length between 1 and 1024'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'lisp read',
+        { dryRun: true, address: addr, length: len },
+        [nextAction('lisp write', 'Write Lisp memory'), nextAction('lisp get-stats', 'Get Lisp statistics')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+
+    try {
+      const client = await createClient(options);
+
+      const payload = new Uint8Array(8);
+      const view = new DataView(payload.buffer);
+      view.setUint32(0, addr, false); // big-endian
+      view.setUint32(4, len, false);  // big-endian
+
+      const packet = encodePacketToArray(VescCommand.CommLispReadCode, payload);
+      const responses = await client.sendAndReceive(packet, options.timeout);
+
+      await client.disconnect();
+
+      const data = responses.length > 0
+        ? Buffer.from(responses[0].payload).toString('hex')
+        : '';
+
+      const response = createSuccessResponse(
+        'lisp read',
+        { address: addr, length: len, data },
+        [
+          nextAction('lisp write', 'Write Lisp memory'),
+          nextAction('lisp get-stats', 'Get Lisp statistics')
+        ]
+      );
+
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'lisp read',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+program
+  .command('lisp-write <address> <hexData>')
+  .alias('lisp write')
+  .description('Write hex data to Lisp memory')
+  .action(async (addressStr, hexDataStr) => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+
+    const addr = parseInt(addressStr, addressStr.startsWith('0x') ? 16 : 10);
+
+    if (isNaN(addr) || addr < 0) {
+      const response = createErrorResponse(
+        'lisp write',
+        `Invalid address: ${addressStr}`,
+        ErrorKind.VALIDATION,
+        'Provide a valid positive integer address'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+
+    let data: Uint8Array;
+    try {
+      data = parseHexString(hexDataStr);
+    } catch (error) {
+      const response = createErrorResponse(
+        'lisp write',
+        error instanceof Error ? error.message : 'Invalid hex data',
+        ErrorKind.VALIDATION,
+        'Provide a valid hex string with even length'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'lisp write',
+        { dryRun: true, address: addr, byteCount: data.length },
+        [nextAction('lisp read', 'Read Lisp memory'), nextAction('lisp get-stats', 'Get Lisp statistics')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+
+    try {
+      const client = await createClient(options);
+
+      const payload = new Uint8Array(4 + data.length);
+      const view = new DataView(payload.buffer);
+      view.setUint32(0, addr, false); // big-endian
+      payload.set(data, 4);
+
+      const packet = encodePacketToArray(VescCommand.CommLispWriteCode, payload);
+      await client.sendRaw(packet);
+
+      await client.disconnect();
+
+      const response = createSuccessResponse(
+        'lisp write',
+        { address: addr, byteCount: data.length },
+        [
+          nextAction('lisp read', 'Read Lisp memory'),
+          nextAction('lisp get-stats', 'Get Lisp statistics')
+        ]
+      );
+
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'lisp write',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+program
+  .command('lisp-reload')
+  .alias('lisp reload')
+  .description('Reload Lisp code from buffer')
+  .action(async () => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'lisp reload',
+        { dryRun: true, action: 'reload' },
+        [nextAction('lisp get-stats', 'Get Lisp statistics'), nextAction('lisp start', 'Start Lisp execution')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+
+    try {
+      const client = await createClient(options);
+
+      const stopPayload = new Uint8Array([0]);
+      const stopPacket = encodePacketToArray(VescCommand.CommLispSetRunning, stopPayload);
+      await client.sendRaw(stopPacket);
+      await sleep(100);
+
+      const startPayload = new Uint8Array([1]);
+      const startPacket = encodePacketToArray(VescCommand.CommLispSetRunning, startPayload);
+      await client.sendRaw(startPacket);
+
+      await client.disconnect();
+
+      const response = createSuccessResponse(
+        'lisp reload',
+        { reloaded: true },
+        [
+          nextAction('lisp get-stats', 'Get Lisp statistics'),
+          nextAction('lisp start', 'Start Lisp execution')
+        ]
+      );
+
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'lisp reload',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+// ============================================================================
+// Firmware Commands
+// ============================================================================
+
+program
+  .command('firmware-info')
+  .alias('firmware info')
+  .description('Get firmware information')
+  .action(async () => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+    
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'firmware info',
+        { dryRun: true },
+        [nextAction('device ping', 'Ping device')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+    
+    try {
+      const client = await createClient(options);
+      
+      const info = await client.getFirmwareVersion();
+      
+      await client.disconnect();
+      
+      const uuidHex = Array.from(info.uuid, b => b.toString(16).padStart(2, '0')).join('');
+      
+      const response = createSuccessResponse(
+        'firmware info',
+        {
+          versionMajor: info.versionMajor,
+          versionMinor: info.versionMinor,
+          name: info.name,
+          hardwareName: info.hardwareName,
+          uuid: uuidHex,
+          compileDate: info.compileDate
+        },
+        [
+          nextAction('device ping', 'Ping device'),
+          nextAction('motor get-values', 'Get motor telemetry')
+        ]
+      );
+      
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'firmware info',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+program
+  .command('firmware-update')
+  .alias('firmware update')
+  .description('Update VESC firmware from binary file')
+  .requiredOption('-f, --file <path>', 'Path to firmware binary file')
+  .action(async (cmdOptions) => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+
+    // Validate file
+    if (!existsSync(cmdOptions.file)) {
+      const response = createErrorResponse('firmware update', `Firmware file not found: ${cmdOptions.file}`, ErrorKind.NOT_FOUND, 'Check the file path and try again');
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.NOT_FOUND);
+    }
+
+    const firmwareData = await readFile(cmdOptions.file);
+    if (firmwareData.length === 0) {
+      const response = createErrorResponse('firmware update', 'Firmware file is empty', ErrorKind.VALIDATION, 'Provide a valid firmware binary');
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+    if (firmwareData.length > 2 * 1024 * 1024) {
+      const response = createErrorResponse('firmware update', 'Firmware file too large (>2MB)', ErrorKind.VALIDATION, 'File may be corrupted or wrong file type');
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+
+    // Dry run
+    if (options.dryRun) {
+      const response = createSuccessResponse('firmware update', { dryRun: true, file: cmdOptions.file, size: firmwareData.length }, [nextAction('firmware update --file ' + cmdOptions.file + ' --yes', 'Run update for real')]);
+      console.log(formatResponse(response, format));
+      return;
+    }
+
+    // Safety confirmation
+    if (!options.yes) {
+      console.error(chalk.yellow('⚠️  WARNING: Firmware update is dangerous and can brick your VESC.'));
+      console.error(chalk.gray(`File: ${cmdOptions.file} (${firmwareData.length} bytes)`));
+      console.error(chalk.gray('Add --yes to confirm and proceed.'));
+      const response = createErrorResponse('firmware update', 'Confirmation required. Add --yes to proceed.', ErrorKind.PERMISSION, 'Run with --yes to confirm');
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PERMISSION_DENIED);
+    }
+
+    try {
+      const client = await createClient(options);
+
+      // Step 1: Jump to bootloader
+      const jumpPacket = encodePacketToArray(VescCommand.CommJumpToBootloader);
+      await client.sendRaw(jumpPacket);
+      console.log(chalk.gray('1/4: Jumped to bootloader...'));
+      await sleep(2000); // Wait for bootloader
+
+      // Step 2: Erase application
+      const erasePacket = encodePacketToArray(VescCommand.CommEraseNewApp);
+      await client.sendRaw(erasePacket);
+      console.log(chalk.gray('2/4: Erasing application flash...'));
+      await sleep(3000); // Wait for erase
+
+      // Step 3: Write firmware in chunks
+      const CHUNK_SIZE = 256;
+      const totalChunks = Math.ceil(firmwareData.length / CHUNK_SIZE);
+      console.log(chalk.gray(`3/4: Writing ${totalChunks} chunks...`));
+
+      for (let offset = 0; offset < firmwareData.length; offset += CHUNK_SIZE) {
+        const chunk = firmwareData.slice(offset, offset + CHUNK_SIZE);
+        const chunkPayload = new Uint8Array(4 + chunk.length);
+        const view = new DataView(chunkPayload.buffer);
+        view.setUint32(0, offset, false); // big-endian offset
+        chunkPayload.set(chunk, 4);
+
+        const writePacket = encodePacketToArray(VescCommand.CommWriteNewAppData, chunkPayload);
+        await client.sendRaw(writePacket);
+
+        // Progress every 10 chunks or at end
+        const chunkIndex = offset / CHUNK_SIZE;
+        if ((chunkIndex + 1) % 10 === 0 || offset + CHUNK_SIZE >= firmwareData.length) {
+          const percent = Math.round(((offset + chunk.length) / firmwareData.length) * 100);
+          console.log(chalk.gray(`   Progress: ${percent}% (${chunkIndex + 1}/${totalChunks} chunks)`));
+        }
+
+        await sleep(20); // Brief pause between chunks
+      }
+
+      // Step 4: Reboot
+      const rebootPacket = encodePacketToArray(VescCommand.CommReboot);
+      await client.sendRaw(rebootPacket);
+      console.log(chalk.gray('4/4: Rebooting...'));
+
+      await client.disconnect();
+
+      const response = createSuccessResponse(
+        'firmware update',
+        { updated: true, file: cmdOptions.file, size: firmwareData.length, chunks: totalChunks },
+        [
+          nextAction('device ping', 'Verify device is alive after update'),
+          nextAction('device info', 'Check firmware version after update')
+        ]
+      );
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'firmware update',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'DO NOT POWER OFF. Try recovery procedure or use VESC Tool GUI.'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+// ============================================================================
+// Terminal Commands
+// ============================================================================
+
+program
+  .command('terminal')
+  .alias('terminal --command')
+  .description('Execute single terminal command')
+  .option('--command <cmd>', 'Command to execute')
+  .action(async (cmdOptions) => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+    const cmd = cmdOptions.command;
+    
+    if (!cmd) {
+      const response = createErrorResponse(
+        'terminal --command',
+        'No command provided. Use --command <cmd>',
+        ErrorKind.VALIDATION,
+        'Provide a command using --command'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.INVALID_ARGUMENTS);
+    }
+    
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'terminal --command',
+        { dryRun: true, command: cmd },
+        [nextAction('terminal --command', 'Execute another command')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+    
+    try {
+      const client = await createClient(options);
+      
+      const payload = encodeNullTerminatedString(cmd);
+      const packet = encodePacketToArray(VescCommand.CommTerminalCmd, payload);
+      const responses = await client.sendAndReceive(packet, options.timeout);
+      
+      await client.disconnect();
+      
+      let output = '';
+      for (const r of responses) {
+        if (r.command === VescCommand.CommPrint) {
+          output += new TextDecoder().decode(r.payload);
+        }
+      }
+      
+      const response = createSuccessResponse(
+        'terminal --command',
+        { command: cmd, output },
+        [
+          nextAction('terminal --command', 'Execute another command'),
+          nextAction('device ping', 'Ping device')
+        ]
+      );
+      
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'terminal --command',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.PROTOCOL,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.PROTOCOL_ERROR);
+    }
+  });
+
+program
+  .command('terminal-repl')
+  .alias('terminal --repl')
+  .description('Enter interactive terminal REPL mode')
+  .action(async () => {
+    const options = getGlobalOptions(program);
+    const format = detectFormat(options.format, process.stdout.isTTY);
+
+    if (options.dryRun) {
+      const response = createSuccessResponse(
+        'terminal --repl',
+        { dryRun: true },
+        [nextAction('terminal --repl', 'Start REPL for real')]
+      );
+      console.log(formatResponse(response, format));
+      return;
+    }
+
+    try {
+      const client = await createClient(options);
+
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+        prompt: 'VESC> '
+      });
+
+      console.log('VESC Terminal REPL. Type "exit" to quit.');
+      rl.prompt();
+
+      rl.on('line', async (line) => {
+        const trimmed = line.trim();
+        if (trimmed === 'exit' || trimmed === 'quit') {
+          rl.close();
+          return;
+        }
+
+        if (trimmed) {
+          const payload = encodeNullTerminatedString(trimmed);
+          const packet = encodePacketToArray(VescCommand.CommTerminalCmd, payload);
+          await client.sendRaw(packet);
+
+          // Wait for CommPrint response
+          await sleep(200);
+          const packets = client.receive();
+          let gotResponse = false;
+          for (const pkt of packets) {
+            if (pkt.command === VescCommand.CommPrint) {
+              const text = new TextDecoder().decode(pkt.payload);
+              console.log(text);
+              gotResponse = true;
+            }
+          }
+          if (!gotResponse) {
+            console.log('(no response)');
+          }
+        }
+
+        rl.prompt();
+      });
+
+      await new Promise<void>((resolve) => {
+        rl.on('close', async () => {
+          await client.disconnect();
+          console.log('\nExiting VESC Terminal REPL.');
+          resolve();
+        });
+      });
+
+      const response = createSuccessResponse(
+        'terminal --repl',
+        { exited: true },
+        [
+          nextAction('terminal --command', 'Execute single terminal command'),
+          nextAction('device ping', 'Ping device')
+        ]
+      );
+
+      console.log(formatResponse(response, format));
+    } catch (error) {
+      const response = createErrorResponse(
+        'terminal --repl',
+        error instanceof Error ? error.message : 'Unknown error',
+        ErrorKind.CONNECTION,
+        'Check connection and try again'
+      );
+      console.error(formatResponse(response, format));
+      process.exit(ExitCode.CONNECTION_FAILED);
+    }
+  });
+
 // ============================================================================
 // Schema Command (AI Agent introspection)
 // ============================================================================
@@ -1606,11 +2980,13 @@ program
         { name: 'device connect', description: 'Connect to VESC device', mutating: false },
         { name: 'device info', description: 'Get device information', mutating: false },
         { name: 'device ping', description: 'Ping VESC device', mutating: false },
+        { name: 'device disconnect', description: 'Disconnect from VESC device', mutating: false },
         { name: 'motor get-values', description: 'Get motor telemetry values', mutating: false },
         { name: 'motor set-rpm', description: 'Set motor RPM', mutating: true, args: [{ name: 'rpm', type: 'integer', required: true }] },
         { name: 'motor set-current', description: 'Set motor current', mutating: true, args: [{ name: 'amperes', type: 'number', required: true }] },
         { name: 'motor set-duty', description: 'Set motor duty cycle', mutating: true, args: [{ name: 'duty', type: 'number', required: true }] },
         { name: 'motor stop', description: 'Stop the motor', mutating: true },
+        { name: 'motor set-current-brake', description: 'Apply current-based braking', mutating: true, args: [{ name: 'amperes', type: 'number', required: true }] },
         { name: 'config get-mc', description: 'Get motor configuration', mutating: false },
         { name: 'config set-mc', description: 'Set motor configuration', mutating: true, args: [{ name: 'file', type: 'string', required: true }] },
         { name: 'config get-app', description: 'Get application configuration', mutating: false },
@@ -1619,9 +2995,27 @@ program
         { name: 'config restore', description: 'Restore from backup', mutating: true, args: [{ name: 'file', type: 'string', required: true }] },
         { name: 'can scan', description: 'Scan for VESCs on CAN bus', mutating: false },
         { name: 'can status', description: 'Get status of specific CAN device', mutating: false, args: [{ name: 'id', type: 'integer', required: true }] },
+        { name: 'can set-id', description: 'Set CAN bus ID for this VESC', mutating: true, args: [{ name: 'id', type: 'integer', required: true }] },
+        { name: 'can forward', description: 'Forward a command to another VESC on CAN bus', mutating: true, args: [{ name: 'can-id', type: 'integer', required: true }, { name: 'command', type: 'string', required: true }] },
         { name: 'lisp upload', description: 'Upload Lisp script', mutating: true, args: [{ name: 'file', type: 'string', required: true }] },
         { name: 'lisp erase', description: 'Erase Lisp program', mutating: true },
-        { name: 'lisp repl', description: 'Execute Lisp REPL command', mutating: true, args: [{ name: 'command', type: 'string', required: false }] }
+        { name: 'lisp repl', description: 'Execute Lisp REPL command', mutating: true, args: [{ name: 'command', type: 'string', required: false }] },
+        { name: 'motor set-position', description: 'Set motor position in degrees', mutating: true, args: [{ name: 'degrees', type: 'number', required: true }] },
+        { name: 'motor set-handbrake', description: 'Apply handbrake current', mutating: true, args: [{ name: 'amperes', type: 'number', required: true }] },
+        { name: 'motor detect', description: 'Auto-detect motor parameters', mutating: true },
+        { name: 'motor stream', description: 'Stream telemetry continuously', mutating: false },
+        { name: 'lisp start', description: 'Start Lisp execution', mutating: true },
+        { name: 'lisp stop', description: 'Stop Lisp execution', mutating: true },
+        { name: 'lisp get-stats', description: 'Get Lisp interpreter statistics', mutating: false },
+        { name: 'lisp read', description: 'Read Lisp memory/code at address', mutating: false },
+        { name: 'lisp write', description: 'Write hex data to Lisp memory', mutating: true, args: [{ name: 'address', type: 'string', required: true }, { name: 'hex-data', type: 'string', required: true }] },
+        { name: 'lisp reload', description: 'Reload Lisp code from buffer', mutating: true },
+        { name: 'firmware info', description: 'Get firmware information', mutating: false },
+         { name: 'firmware update', description: 'Update VESC firmware from binary file', mutating: true, args: [{ name: 'file', type: 'string', required: true }] },
+         { name: 'terminal --command', description: 'Execute single terminal command', mutating: true, args: [{ name: 'cmd', type: 'string', required: true }] },
+         { name: 'terminal --repl', description: 'Enter interactive terminal REPL mode', mutating: true },
+         { name: 'schema', description: 'Get command schema for AI agent introspection' },
+         { name: 'generate-completions', description: 'Generate shell completion scripts' }
       ],
       errorCodes: {
         0: 'Success',
@@ -1700,11 +3094,13 @@ program
       'device connect',
       'device info',
       'device ping',
+      'device disconnect',
       'motor get-values',
       'motor set-rpm',
       'motor set-current',
       'motor set-duty',
       'motor stop',
+      'motor set-current-brake',
       'config get-mc',
       'config set-mc',
       'config get-app',
@@ -1713,9 +3109,25 @@ program
       'config restore',
       'can scan',
       'can status',
+      'can set-id',
+      'can forward',
       'lisp upload',
       'lisp erase',
       'lisp repl',
+      'lisp start',
+      'lisp stop',
+      'lisp get-stats',
+      'lisp read',
+      'lisp write',
+      'lisp reload',
+      'motor set-position',
+      'motor set-handbrake',
+      'motor detect',
+      'motor stream',
+      'firmware info',
+       'firmware update',
+       'terminal --command',
+      'terminal --repl',
       'schema',
       'generate-completions'
     ];
